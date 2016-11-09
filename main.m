@@ -7,9 +7,8 @@
 %
 % Parameter
 PA_ratio =  1.0353*10^3;  % Compresion Ratio of the Pump% P2/P1
-SG_T_out = 520         ;  % Maximum Temperature out of the Steam Genetator
+SG_T_out = 525         ;  % Maximum Temperature out of the Steam Genetator
 TU_ratio = 0.0012575   ;  % Expansion Ratio of the Turbine
-CO_Hext  = 2275        ;  % Enthalpy extracted at the condensor 
 SG_pdrop = 0.1         ;  % Pressure drop in the Steam Generator
 CO_pdrop = 0.14653     ;  % Pressure drop in the condensor
 %% =============================
@@ -18,7 +17,7 @@ CO_pdrop = 0.14653     ;  % Pressure drop in the condensor
 % 1,2 Pompe Alimentaire In-Out
 % 3,4 Steam Generator   In-Out
 % 4,5 Turbine           In-Out
-% 5-6 Condensor         In-Out
+% 5,6 Condensor         In-Out
 
 %        p T v h
 Table = [];
@@ -30,11 +29,10 @@ Table = [];
  Table(1,4) = XSteam('hL_T',Table(1,2));
 %% =============================
 % Pump
- Table(2,1) = Table(1,1) * PA_ratio;
- Table(2,2) = Table(1,2) * 1.1;
- Table(2,3) = XSteam('vL_T',Table(2,2));
+ Table(2,1) = Table(1,1) * PA_ratio; 
  Table(2,4) = Table(1,4)+ (Table(2,1)-Table(1,1))*Table(1,3)*10^2;
-
+ Table(2,2) = XSteam('T_pH',Table(2,1),Table(2,4));
+ Table(2,3) = XSteam('vL_T',Table(2,2));
 % Connection P-SG 
  Table(3,:) = Table(2,:);
  
