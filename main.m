@@ -147,7 +147,8 @@ for i = 1 : N_soutirage
     TB_sout_B(i) = H_tfo - H_tfi;
 end
 % Vecteur des débits
-Debit_sout = TB_sout_A\TB_sout_B;
+Debit_sout = (-1)*(TB_sout_A\TB_sout_B);
+% on met à jour le tableau
 
 
 
