@@ -12,7 +12,7 @@ if nargin==0
     eta_meca=0.9;
     P_eff=400;
     
-    data.T_river=15+273.15;
+    data.T_river=15;
     data.deltaT_river=15;
     data.p_turb=200;
     data.T_turb=525;
@@ -22,6 +22,20 @@ if nargin==0
     data.P_eff=400;
     data.Turb_comp=7;
     data.SG_ploss=0.1;
+    
+    data.Cond_pinch = 5;
+    data.TurbLP_safe = 5;
+    
+    data.TurbHP_p_in = 200;
+    data.TurbHP_p_out = 50;
+    data.TurbHP_comp = data.TurbHP_p_in/data.TurbHP_p_out;
+    data.TurbIP_p_in =  50;
+    data.TurbIP_p_out = 5;
+    data.TurbIP_comp = data.TurbIP_p_in/data.TurbIP_p_out;
+    data.TurbLP_p_in = 5;
+    data.TurbLP_p_out = XSteam('Psat_T',data.T_river+data.Cond_pinch);
+    data.TurbLP_comp = data.TurbLP_p_in/data.TurbLP_p_out  
+    
 end
 
 %% etat de reference
@@ -38,7 +52,10 @@ data.s_ref=XSteam('s_pT',data.p_ref,data.T_ref);
 % result(3).x = XSteam('x_ph',result(3).p,result(3).h);
 % result(3).ex = exergy(result(3).h, h_ref, result(3).s, s_ref, T_ref);
 data = ST_Init(data);
-data = ST_Turbine(data);
+%data = ST_Turbine(data);
+data = ST_TurbHP(data);
+data = ST_TurbIP(data);
+data = ST_TurbLP(data);
 data = ST_Condensor(data);
 data = ST_SteamGen(data);
 
@@ -62,6 +79,10 @@ plot(data.result(22).s,data.result(22).T,'.','MarkerSize',15)
 text(data.result(22).s,data.result(22).T,'22')
 plot(data.result(3).s,data.result(3).T,'.','MarkerSize',15)
 text(data.result(3).s,data.result(3).T,'3')
+plot(data.result(31).s,data.result(31).T,'.','MarkerSize',15)
+text(data.result(31).s,data.result(31).T,'31')
+plot(data.result(32).s,data.result(32).T,'.','MarkerSize',15)
+text(data.result(32).s,data.result(32).T,'32')
 plot(data.result(4).s,data.result(4).T,'.','MarkerSize',15)
 text(data.result(4).s,data.result(4).T,'4')
 
@@ -69,8 +90,13 @@ plot([data.result(1).s data.result(20).s], [data.result(1).T data.result(20).T])
 plot([data.result(20).s data.result(21).s], [data.result(20).T data.result(21).T] )
 plot([data.result(21).s data.result(22).s], [data.result(21).T data.result(22).T] )
 plot([data.result(22).s data.result(3).s], [data.result(22).T data.result(3).T] )
-plot([data.result(3).s data.result(4).s], [data.result(3).T data.result(4).T] )
+plot([data.result(3).s data.result(31).s], [data.result(3).T data.result(31).T] )
+plot([data.result(31).s data.result(32).s], [data.result(31).T data.result(32).T] )
+plot([data.result(32).s data.result(4).s], [data.result(32).T data.result(4).T] )
 plot([data.result(4).s data.result(1).s], [data.result(4).T data.result(1).T] )
+
+
+
 hold off;
 
 subplot(2,2,2);
@@ -79,8 +105,6 @@ title('Rankine-Hirn Cycle')
 xlabel('v[m^3/kg]')
 ylabel('p[Pa]')
 
-data.result(1).v
-data.result(1).p
 
 plot(data.result(1).v,data.result(1).p,'.','MarkerSize',15)
 text(data.result(1).v,data.result(1).p,'1')
@@ -92,6 +116,10 @@ plot(data.result(22).v,data.result(22).p,'.','MarkerSize',15)
 text(data.result(22).v,data.result(22).p,'22')
 plot(data.result(3).v,data.result(3).p,'.','MarkerSize',15)
 text(data.result(3).v,data.result(3).p,'3')
+plot(data.result(31).v,data.result(31).p,'.','MarkerSize',15)
+text(data.result(31).v,data.result(31).p,'31')
+plot(data.result(32).v,data.result(32).p,'.','MarkerSize',15)
+text(data.result(32).v,data.result(32).p,'32')
 plot(data.result(4).v,data.result(4).p,'.','MarkerSize',15)
 text(data.result(4).v,data.result(4).p,'4')
 
@@ -99,7 +127,9 @@ plot([data.result(1).v data.result(20).v], [data.result(1).p data.result(20).p] 
 plot([data.result(20).v data.result(21).v], [data.result(20).p data.result(21).p] )
 plot([data.result(21).v data.result(22).v], [data.result(21).p data.result(22).p] )
 plot([data.result(22).v data.result(3).v], [data.result(22).p data.result(3).p] )
-plot([data.result(3).v data.result(4).v], [data.result(3).p data.result(4).p] )
+plot([data.result(3).v data.result(31).v], [data.result(3).p data.result(31).p] )
+plot([data.result(31).v data.result(32).v], [data.result(31).p data.result(32).p] )
+plot([data.result(32).v data.result(4).v], [data.result(32).p data.result(4).p] )
 plot([data.result(4).v data.result(1).v], [data.result(4).p data.result(1).p] )
 hold off;
 grid off;
@@ -111,6 +141,6 @@ pie(sum_energ,labels);
 
 subplot(2,2,4);
 labels = {'pump','steam generator','turbine','condensor'};
-sum_exerg = [data.result(1).ex data.result(20).ex+data.result(21).ex+data.result(22).ex data.result(3).ex data.result(4).ex];
+sum_exerg = [data.result(1).ex data.result(20).ex+data.result(21).ex+data.result(22).ex data.result(3).ex data.result(4).ex]
 pie(sum_exerg,labels);
 end
