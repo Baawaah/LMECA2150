@@ -28,10 +28,10 @@ if nargin==0
     
     data.TurbHP_p_in = 200;
     data.TurbHP_p_out = 50;
-    data.TurbHP_comp = data.TurbHP_p_in/data.TurbHP_p_out;
+    data.TurbHP_comp = data.TurbHP_p_in/data.TurbHP_p_out
     data.TurbIP_p_in =  50;
     data.TurbIP_p_out = 5;
-    data.TurbIP_comp = data.TurbIP_p_in/data.TurbIP_p_out;
+    data.TurbIP_comp = data.TurbIP_p_in/data.TurbIP_p_out
     data.TurbLP_p_in = 5;
     data.TurbLP_p_out = XSteam('Psat_T',data.T_river+data.Cond_pinch);
     data.TurbLP_comp = data.TurbLP_p_in/data.TurbLP_p_out  
