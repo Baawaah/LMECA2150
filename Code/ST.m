@@ -204,7 +204,9 @@ end
 if isfield(options,'eta_SiT')           
     data.eta_SiT = options.eta_SiT;    
 else
-    data.eta_SiT = 0.9;   
+    data.eta_SiT(1) = 0.9;
+    data.eta_SiT(2) = 0.9;
+    data.eta_SiT(3) = 0.9;
 end
 %% Intermidiary Initialisation
 % Reference State
@@ -216,12 +218,17 @@ end
 
     data.TurbLP_safe = 5;
     data.TurbHP_p_out = 50;
-    data.TurbIP_p_out =  5;
+    data.TurbIP_p_out =  10;
     data.TurbHP_comp = data.p3_hp/data.TurbHP_p_out;
     data.TurbIP_comp = data.TurbHP_p_out/data.TurbIP_p_out;
     data.TurbLP_comp = 6;
+    
+    
+    data.Sout_Pe_ratio = 2;
 % Steam Generator
     data.SG_ploss = 0.1;
+    
+    data.v_eau = 1/1000; %(volume massique eau)
     
 % Exergy
     function [ex] = exergy(h,h_ref,s,s_ref,T0)
@@ -241,17 +248,25 @@ end
     data.result(31).p = data.result(3).p*data.TurbHP_comp;
     s_31_is = data.result(3).s;
     h_31_is = XSteam('h_ps', data.result(31).p, s_31_is);
-    data.result(31).h = data.result(3).h + data.eta_SiT*(h_31_is-data.result(3).h);
+    data.result(31).h = data.result(3).h + data.eta_SiT(1)*(h_31_is-data.result(3).h);
     data.result(31).T = XSteam('T_ph', data.result(31).p, data.result(31).h);
     data.result(31).x = XSteam('x_ph', data.result(31).p, data.result(31).h);
     data.result(31).s = XSteam('s_ph', data.result(31).p, data.result(31).h);
     data.result(31).v = XSteam('v_pT', data.result(31).p,data.result(31).T);
     data.result(31).ex = exergy(data.result(31).h, data.h_ref, data.result(31).s, data.s_ref, data.T0);
+%% Reheat From Turbine
+    data.result(311).T = data.T_max;
+    data.result(311).p = data.result(31).p*(1-data.SG_ploss);
+    data.result(311).h = XSteam('h_pT', data.result(311).p, data.result(311).T);
+    data.result(311).x = XSteam('x_ph', data.result(311).p, data.result(311).T);
+    data.result(311).s = XSteam('s_pT', data.result(311).p, data.result(311).T);
+    data.result(311).v = XSteam('v_pT', data.result(311).p,data.result(311).T);
+    data.result(311).ex = exergy(data.result(31).h, data.h_ref, data.result(311).s, data.s_ref, data.T0);
 %% IP Turbine
-    data.result(32).p = data.result(31).p/data.TurbIP_comp;
-    s_32_is = data.result(31).s;
+    data.result(32).p = data.result(311).p/data.TurbIP_comp;
+    s_32_is = data.result(311).s;
     h_32_is = XSteam('h_ps', data.result(32).p, s_32_is);
-    data.result(32).h = data.result(31).h + data.eta_SiT*(h_32_is-data.result(31).h);
+    data.result(32).h = data.result(311).h + data.eta_SiT(2)*(h_32_is-data.result(311).h);
     data.result(32).T = XSteam('T_ph', data.result(32).p, data.result(32).h);
     data.result(32).x = XSteam('x_ph', data.result(32).p, data.result(32).h);
     data.result(32).s = XSteam('s_ph', data.result(32).p, data.result(32).h);
@@ -260,8 +275,8 @@ end
 %% LP Turbine
     data.result(4).p = data.result(32).p/data.TurbLP_comp;
     s_4_is = data.result(32).s;
-    h_4_is = XSteam('h_ps', data.result(32).p, s_4_is);
-    data.result(4).h = data.result(32).h + data.eta_SiT*(h_4_is-data.result(32).h);
+    h_4_is = XSteam('h_ps', data.result(4).p, s_4_is);
+    data.result(4).h = data.result(32).h + data.eta_SiT(3)*(h_4_is-data.result(32).h);
     data.result(4).T = XSteam('T_ph',data.result(4).p,data.result(4).h);
     data.result(4).x = XSteam('x_ph', data.result(4).p, data.result(4).h);
     data.result(4).s = XSteam('s_ph', data.result(4).p, data.result(4).h);
@@ -278,11 +293,142 @@ end
     data.result(1).v = XSteam('vL_p',data.result(1).p);
     data.result(1).x = 0;
     data.result(1).ex = exergy(data.result(1).h, data.h_ref, data.result(1).s, data.s_ref, data.T0);
+%% Bleeding
+    % TB_sout est le tableau des états  du feedwater se trouvant dans le 
+    % soutirage qui sera construit en parallele avec la matrice de résolution 
+    % des débits
+    
+    % Turbine Extraction data.Sout_n    
+    p_extract = linspace(data.result(32).p,data.result(4).p,data.nsout+2);
+    
+    % Calcule des h extraits
+    h_extract = ones(length(p_extract),1);
+    h_extract(1) = data.result(32).h;
+    for i = 2 : data.nsout+2
+        s_is = data.result(32).s;
+        h_is = XSteam('h_ps',p_extract(i), s_is);
+        h_extract(i) = h_extract(i-1) + data.eta_SiT(3)*(h_is-data.result(32).h);
+    end
+    data.Sout_Table = zeros(data.nsout+4,5);
+    % Connection
+    data.Sout_Table(1,1) = data.result(1).p;
+    data.Sout_Table(1,2) = data.result(1).T;
+    data.Sout_Table(1,3) = data.result(1).v;
+    data.Sout_Table(1,4) = data.result(1).h;
+    data.Sout_Table(1,5) = data.result(1).s;
+    data.Sout_Table(1,6) = 5;
+    % Extraction pump after the Condensor
+    data.Sout_Table(1,1) = data.result(1).p * data.Sout_Pe_ratio;
+    data.Sout_Table(1,4) = data.result(1).h + data.v_eau*((data.Sout_Table(1,1)-data.result(1).p)*10^5)*data.eta_SiC;
+    data.Sout_Table(1,2) = XSteam('T_ph',data.Sout_Table(1,1),data.Sout_Table(1,4));
+ 
+    % Entropy
+    % s_i = @(i) data.Table(5,5) - (data.Table(6,5)-data.Table(5,5))*(data.Sout_n+1 - i)/(data.Sout_n+1);
+    % Remplissage de TB_sout
+    % p T v h s
+    % Chaque niveau possède 2 pts waterfeed and bleeding
+    % Reheat Block
+    % Just pour chauffer un peu l'eau du soutirage ici 5 degree
+    % FLAG Condensor Water FLAG [5] Feedwater FLAG [-5]
+     if data.nsout > 0
+        %  Input Bleeding
+        data.Sout_Table(3,1) = p_extract(1);
+        data.Sout_Table(3,4) = h_extract(1);
+        data.Sout_Table(3,2) = XSteam('Tsat_p',data.Sout_Table(3,1));
+        data.Sout_Table(3,3) = XSteam('vV_p',data.Sout_Table(3,1));
+        data.Sout_Table(3,5) = XSteam('s_ph',data.Sout_Table(3,1),data.Sout_Table(3,4));
+        data.Sout_Table(3,6) = -5;
+        % Output Bleeding
+        data.Sout_Table(4,1) = data.Sout_Table(3,1);
+        data.Sout_Table(4,2) = data.Sout_Table(3,2) + data.TpinchEx;
+        data.Sout_Table(4,3) = XSteam('vL_T',data.Sout_Table(4,2));
+        data.Sout_Table(4,4) = XSteam('h_pT',data.Sout_Table(4,1),data.Sout_Table(4,2));
+        data.Sout_Table(4,5) = XSteam('s_pT',data.Sout_Table(4,1),data.Sout_Table(4,2));
+        data.Sout_Table(4,6) = -5;
+        %  Output Feedwater
+        data.Sout_Table(2,1) = data.Sout_Table(1,1);
+        data.Sout_Table(2,2) = data.Sout_Table(4,2)+data.TpinchEx;
+        data.Sout_Table(2,3) = XSteam('vL_T',data.Sout_Table(2,2));
+        data.Sout_Table(2,4) = XSteam('h_pT',data.Sout_Table(2,1),data.Sout_Table(2,2));
+        data.Sout_Table(2,5) = XSteam('s_pT',data.Sout_Table(2,1),data.Sout_Table(2,2));
+        data.Sout_Table(2,6) = 5;
+     else
+        data.Sout_Table(2,:) = data.Sout_Table(1,:); 
+     end
+    for i = 1 : data.nsout
+        %  Input Bleeding
+        data.Sout_Table(i*4+3,1) = p_extract(i+1);
+        data.Sout_Table(i*4+3,4) = h_extract(i+1);
+        data.Sout_Table(i*4+3,2) = XSteam('T_ph',data.Sout_Table(i*4+3,1),data.Sout_Table(i*4+3,4));
+        data.Sout_Table(i*4+3,3) = XSteam('v_pT',data.Sout_Table(i*4+1,1),data.Sout_Table(i*4+1,2));
+        data.Sout_Table(i*4+3,5) = XSteam('s_pT',data.Sout_Table(i*4+1,1),data.Sout_Table(i*4+1,2));
+        data.Sout_Table(i*4+3,6) = -5;
+        %data.Sout_Table(i*4+3,4) = XSteam('h_ps',data.Sout_Table(i*4+3,1),data.Sout_Table(i*4+3,5));
+        
+        % Output Bleeding
+        data.Sout_Table(i*4+4,1) = data.Sout_Table(i*4+3,1); 
+        data.Sout_Table(i*4+4,2) = XSteam('Tsat_p',data.Sout_Table(i*4+4,1));
+        data.Sout_Table(i*4+4,3) = XSteam('vL_T',data.Sout_Table(i*4+1,2));
+        data.Sout_Table(i*4+4,4) = XSteam('hL_T',data.Sout_Table(i*4+4,2));
+        data.Sout_Table(i*4+4,5) = XSteam('sL_p',data.Sout_Table(i*4+4,1));
+        data.Sout_Table(i*4+4,6) = -5;
+        
+        %  Input Feedwater
+        data.Sout_Table(i*4+1,1) = data.Sout_Table(1,1);
+        data.Sout_Table(i*4+1,2) = data.Sout_Table(i*4-2,2);
+        data.Sout_Table(i*4+1,3) = XSteam('vL_T',data.Sout_Table(i*4+1,2));
+        data.Sout_Table(i*4+1,4) = XSteam('h_pT',data.Sout_Table(i*4+1,1),data.Sout_Table(i*4+1,2));
+        data.Sout_Table(i*4+1,5) = XSteam('s_pT',data.Sout_Table(i*4+1,1),data.Sout_Table(i*4+1,2));
+        data.Sout_Table(i*4+1,6) = 5;
+        % Output Feedwater
+        data.Sout_Table(i*4+2,1) = data.Sout_Table(i*4+1,1);
+        data.Sout_Table(i*4+2,2) = data.Sout_Table(i*4+4,2) + data.TpinchEx; 
+        data.Sout_Table(i*4+2,3) = XSteam('vL_T',data.Sout_Table(i*4+1,2));
+        data.Sout_Table(i*4+2,4) = XSteam('h_pT',data.Sout_Table(i*4+2,1),data.Sout_Table(i*4+2,2));
+        data.Sout_Table(i*4+2,5) = XSteam('s_pT',data.Sout_Table(i*4+1,1),data.Sout_Table(i*4+1,2));
+        data.Sout_Table(i*4+2,6) = 5;
+    end
+    
+    
+    
+    
+    
+    data.Sout_Table(:,[3 5 6])
 
+
+    
+    % Connection avec le point 1
+      data.result(1).p = data.Sout_Table(data.nsout*4+2,1);
+      data.result(1).T = data.Sout_Table(data.nsout*4+2,2);
+      data.result(1).v = data.Sout_Table(data.nsout*4+2,3);
+      data.result(1).h = data.Sout_Table(data.nsout*4+2,4);
+      data.result(1).s = data.Sout_Table(data.nsout*4+2,5);
+%     % Calcule des debits
+%     TB_sout_A = zeros(data.Sout_n,data.Sout_n);
+%     TB_sout_B = zeros(data.Sout_n, 1);
+%     for i = 1 : data.Sout_n
+%         for j = 1 : data.Sout_n
+%             H_tfo = data.Sout_Table(i*4+2,4);
+%             H_tfi = data.Sout_Table(i*4+1,4);
+%             TB_sout_A(i,j) = ( H_tfo - H_tfi ) + TB_sout_A(i,j);
+%         end
+%         H_tbo = data.Sout_Table(i*4+4,4);
+%         H_tbi = data.Sout_Table(i*4+3,4);
+%         TB_sout_A(i,i) = TB_sout_A(i,i) - (H_tbi - H_tbo); 
+%         for j = i+1 : data.Sout_n
+%             TB_sout_A(i,j) = TB_sout_A(i,j) - (H_tbo - H_tbi); 
+%         end
+%         TB_sout_B(i) = H_tfo - H_tfi;
+%     end
+%     % Calcule des débits
+%     data.Sout_deb = (-1)*(TB_sout_A\TB_sout_B);
+% 
+%     data.Table(12,3) = data.Table(12,3) + sum(data.Sout_deb);
+%     data.Sout_Table(1,3) = data.Table(12,3);
 %% Steam Generator
-    data.v_eau = 1/1000; %(volume massique eau)
+
     data.result(20).p = data.result(3).p*(1+data.SG_ploss);
-    data.result(20).h = data.result(1).h+data.v_eau*(data.result(20).p-data.result(1).p)*data.eta_SiC;
+    data.result(20).h = data.result(1).h + data.v_eau*((data.result(20).p-data.result(1).p)*10^5)*data.eta_SiC;
     data.result(20).T = XSteam('T_ph',data.result(20).p,data.result(20).h);
     data.result(20).s = XSteam('s_ph',data.result(20).p,data.result(20).h);
     data.result(20).v = XSteam('v_pT',data.result(20).p,data.result(20).T);
@@ -312,78 +458,85 @@ end
         hold on;
         title('Rankine-Hirn Cycle')
         xlabel('s[kJ/kgK]')
-ylabel('T[K]')
-plot(data.result(1).s,data.result(1).T,'.','MarkerSize',15)
-text(data.result(1).s,data.result(1).T,'1')
-plot(data.result(20).s,data.result(20).T,'.','MarkerSize',15)
-text(data.result(20).s,data.result(20).T,'20')
-plot(data.result(21).s,data.result(21).T,'.','MarkerSize',15)
-text(data.result(21).s,data.result(21).T,'21')
-plot(data.result(22).s,data.result(22).T,'.','MarkerSize',15)
-text(data.result(22).s,data.result(22).T,'22')
-plot(data.result(3).s,data.result(3).T,'.','MarkerSize',15)
-text(data.result(3).s,data.result(3).T,'3')
-plot(data.result(31).s,data.result(31).T,'.','MarkerSize',15)
-text(data.result(31).s,data.result(31).T,'31')
-plot(data.result(32).s,data.result(32).T,'.','MarkerSize',15)
-text(data.result(32).s,data.result(32).T,'32')
-plot(data.result(4).s,data.result(4).T,'.','MarkerSize',15)
-text(data.result(4).s,data.result(4).T,'4')
+        ylabel('T[K]')
+        plot(data.result(1).s,data.result(1).T,'.','MarkerSize',15)
+        text(data.result(1).s,data.result(1).T,'1')
+        plot(data.result(20).s,data.result(20).T,'.','MarkerSize',15)
+        text(data.result(20).s,data.result(20).T,'20')
+        plot(data.result(21).s,data.result(21).T,'.','MarkerSize',15)
+        text(data.result(21).s,data.result(21).T,'21')
+        plot(data.result(22).s,data.result(22).T,'.','MarkerSize',15)
+        text(data.result(22).s,data.result(22).T,'22')
+        plot(data.result(3).s,data.result(3).T,'.','MarkerSize',15)
+        text(data.result(3).s,data.result(3).T,'3')
+        plot(data.result(31).s,data.result(31).T,'.','MarkerSize',15)
+        text(data.result(31).s,data.result(31).T,'31')
+        plot(data.result(311).s,data.result(311).T,'.','MarkerSize',15)
+        text(data.result(311).s,data.result(311).T,'311')
+        plot(data.result(32).s,data.result(32).T,'.','MarkerSize',15)
+        text(data.result(32).s,data.result(32).T,'32')
+        plot(data.result(4).s,data.result(4).T,'.','MarkerSize',15)
+        text(data.result(4).s,data.result(4).T,'4')
 
-plot([data.result(1).s data.result(20).s], [data.result(1).T data.result(20).T])
-plot([data.result(20).s data.result(21).s], [data.result(20).T data.result(21).T] )
-plot([data.result(21).s data.result(22).s], [data.result(21).T data.result(22).T] )
-plot([data.result(22).s data.result(3).s], [data.result(22).T data.result(3).T] )
-plot([data.result(3).s data.result(31).s], [data.result(3).T data.result(31).T] )
-plot([data.result(31).s data.result(32).s], [data.result(31).T data.result(32).T] )
-plot([data.result(32).s data.result(4).s], [data.result(32).T data.result(4).T] )
-plot([data.result(4).s data.result(1).s], [data.result(4).T data.result(1).T] )
-
-
-
-hold off;
-
-subplot(2,2,2);
-hold on;
-title('Rankine-Hirn Cycle')
-xlabel('v[m^3/kg]')
-ylabel('p[Pa]')
+        plot([data.result(1).s data.result(20).s], [data.result(1).T data.result(20).T])
+        plot([data.result(20).s data.result(3).s], [data.result(20).T data.result(3).T] )
+        %plot([data.result(21).s data.result(22).s], [data.result(21).T data.result(22).T] )
+        %plot([data.result(22).s data.result(3).s], [data.result(22).T data.result(3).T] )
+        plot([data.result(3).s data.result(31).s], [data.result(3).T data.result(31).T] )
+        plot([data.result(31).s data.result(311).s], [data.result(31).T data.result(311).T] )
+        plot([data.result(311).s data.result(32).s], [data.result(311).T data.result(32).T] )
+        plot([data.result(32).s data.result(4).s], [data.result(32).T data.result(4).T] )
+        plot([data.result(4).s data.result(1).s], [data.result(4).T data.result(1).T] )
+        
 
 
-plot(data.result(1).v,data.result(1).p,'.','MarkerSize',15)
-text(data.result(1).v,data.result(1).p,'1')
-plot(data.result(20).v,data.result(20).p,'.','MarkerSize',15)
-text(data.result(20).v,data.result(20).p,'20')
-plot(data.result(21).v,data.result(21).p,'.','MarkerSize',15)
-text(data.result(21).v,data.result(21).p,'21')
-plot(data.result(22).v,data.result(22).p,'.','MarkerSize',15)
-text(data.result(22).v,data.result(22).p,'22')
-plot(data.result(3).v,data.result(3).p,'.','MarkerSize',15)
-text(data.result(3).v,data.result(3).p,'3')
-plot(data.result(31).v,data.result(31).p,'.','MarkerSize',15)
-text(data.result(31).v,data.result(31).p,'31')
-plot(data.result(32).v,data.result(32).p,'.','MarkerSize',15)
-text(data.result(32).v,data.result(32).p,'32')
-plot(data.result(4).v,data.result(4).p,'.','MarkerSize',15)
-text(data.result(4).v,data.result(4).p,'4')
+        hold off;
+        
+        
+        
+        subplot(2,2,2);
+        hold on;
+        title('Rankine-Hirn Cycle')
+        xlabel('v[m^3/kg]')
+        ylabel('p[Pa]')
+        
+        plot(data.result(1).v,data.result(1).p,'.','MarkerSize',15)
+        text(data.result(1).v,data.result(1).p,'1')
+        plot(data.result(20).v,data.result(20).p,'.','MarkerSize',15)
+        text(data.result(20).v,data.result(20).p,'20')
+        plot(data.result(21).v,data.result(21).p,'.','MarkerSize',15)
+        text(data.result(21).v,data.result(21).p,'21')
+        plot(data.result(22).v,data.result(22).p,'.','MarkerSize',15)
+        text(data.result(22).v,data.result(22).p,'22')
+        plot(data.result(3).v,data.result(3).p,'.','MarkerSize',15)
+        text(data.result(3).v,data.result(3).p,'3')
+        plot(data.result(31).v,data.result(31).p,'.','MarkerSize',15)
+        text(data.result(31).v,data.result(31).p,'31')
+        plot(data.result(32).v,data.result(32).p,'.','MarkerSize',15)
+        text(data.result(32).v,data.result(32).p,'32')
+        plot(data.result(4).v,data.result(4).p,'.','MarkerSize',15)
+        text(data.result(4).v,data.result(4).p,'4')
 
-plot([data.result(1).v data.result(20).v], [data.result(1).p data.result(20).p] )
-plot([data.result(20).v data.result(21).v], [data.result(20).p data.result(21).p] )
-plot([data.result(21).v data.result(22).v], [data.result(21).p data.result(22).p] )
-plot([data.result(22).v data.result(3).v], [data.result(22).p data.result(3).p] )
-plot([data.result(3).v data.result(31).v], [data.result(3).p data.result(31).p] )
-plot([data.result(31).v data.result(32).v], [data.result(31).p data.result(32).p] )
-plot([data.result(32).v data.result(4).v], [data.result(32).p data.result(4).p] )
-plot([data.result(4).v data.result(1).v], [data.result(4).p data.result(1).p] )
-hold off;
-grid off;
+        plot([data.result(1).v data.result(20).v], [data.result(1).p data.result(20).p] )
+        plot([data.result(20).v data.result(21).v], [data.result(20).p data.result(21).p] )
+        plot([data.result(21).v data.result(22).v], [data.result(21).p data.result(22).p] )
+        plot([data.result(22).v data.result(3).v], [data.result(22).p data.result(3).p] )
+        plot([data.result(3).v data.result(31).v], [data.result(3).p data.result(31).p] )
+        plot([data.result(31).v data.result(32).v], [data.result(31).p data.result(32).p] )
+        plot([data.result(32).v data.result(4).v], [data.result(32).p data.result(4).p] )
+        plot([data.result(4).v data.result(1).v], [data.result(4).p data.result(1).p] )
+        hold off;
+        grid off;
+
 
 subplot(2,2,3);
+title('ENERGY')
 labels = {'pump','steam generator','turbine','condensor'};
 sum_energ = [data.result(1).h data.result(20).h+data.result(21).h+data.result(22).h data.result(3).h data.result(4).h];
 pie(sum_energ,labels);
 
 subplot(2,2,4);
+title('EXERGY')
 labels = {'pump','steam generator','turbine','condensor'};
 sum_exerg = [data.result(1).ex data.result(20).ex+data.result(21).ex+data.result(22).ex data.result(3).ex data.result(4).ex];
 pie(sum_exerg,labels);
