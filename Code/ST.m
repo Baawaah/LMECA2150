@@ -316,6 +316,14 @@ if options.reheat>0
         data.result(50+i).ex = exergy(data.result(50+i).h, data.h_ref, data.result(50+i).s, data.s_ref, data.T0);
     end
 end
+
+%% Feed-heating 
+if options.nsout>0
+    for i=1:options.nsout
+        data.result(70+i).p = data.result(60+i).p;
+        data.result(70+i).x = 0; %liquide sature
+    end
+end
  
 %% Display
     if display == true
