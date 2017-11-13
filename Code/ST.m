@@ -304,6 +304,18 @@ end
     data.result(22).v = XSteam('vV_p',data.result(22).p);
     data.result(22).x = 1;
     data.result(22).ex = exergy(data.result(22).h, data.h_ref, data.result(22).s, data.s_ref, data.T0);
+    
+%% Reheating
+if options.reheat>0
+    for i=1:options.reheat
+        data.result(50+i).t = data.result(30).t;
+        data.result(50+i).p = data.TurbHP_p_out;
+        data.result(50+i).h = XSteam('h_pT', data.result(50+i).p, data.result(50+i).t);
+        data.result(50+i).s = XSteam('s_pT', data.result(50+i).p, data.result(50+i).t);
+        data.result(50+i).x = XSteam('x_ph', data.result(50+i).p, data.result(50+i).h);
+        data.result(50+i).ex = exergy(data.result(50+i).h, data.h_ref, data.result(50+i).s, data.s_ref, data.T0);
+    end
+end
  
 %% Display
     if display == true
