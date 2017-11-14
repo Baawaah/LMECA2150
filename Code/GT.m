@@ -66,13 +66,63 @@ function [ETA DATEN DATEX DAT MASSFLOW COMBUSTION] = GT(P_e,options,display)
 
 
 % Example of how to handle with options structure
-
 if isfield(options,'T_0')
-    T_0 = options.T_0;
+    data.T_0 = options.T_0;
 else
-    T_0 = 288.15; %[K]
+    data.T_0 = 288.15; %[K]
 end
+if isfield(options,'k_mec')
+    data.k_mec = options.k_mec;
+else
+    data.k_mec = 0.1; 
+end
+if isfield(options,'T_ext')
+    data.T_ext = options.T_ext;
+else
+    data.T_ext = 288.15; %[K]
+end
+if isfield(options,'r')
+    data.r = options.r;
+else
+    data.r = 10; 
+end
+if isfield(options,'k_cc')
+    data.k_cc = options.k_cc;
+else
+    data.k_cc = 0.1; 
+end
+if isfield(options,'T3')
+    data.T3 = options.T3;
+else
+    data.T3 = 1323.15; 
+end
+if isfield(options,'eta_PiC')
+    data.eta_PiC = options.eta_PiC;
+else
+    data.eta_PiC = 0.9; 
+end
+if isfield(options,'eta_PiT')
+    data.eta_PiT = options.eta_PiT;
+else
+    data.eta_PiT = 0.9; 
+end
+%% THE CODE
+% INITIALISATION
+MmNO2 = 28,0134;
+MmO2  = 31,9988;
+MmAr  = 39,948; %on prend le cas de Air = 79% N2 et 21% O2 ??
+MmCO2 = 44,0095;
+0.7808*MmNO2 + 0.2095*MmO2 + 0.00934*MmAr + 0.0004* MmCO2;
+R = 8.3415*1000/28.66;
 
-% [...] your work
+% 1 2 3 4 5
+% p T h s v
+%% STATE 1 AIR ENTRY
+data.table(1,1) = 1; % [bar]
+data.table(1,2) = data.T_ext;
+data.table(1,3) = 0; % Etat de référence 
+data.table(1,4) = 0; % Etat de référence
+data.table(1,5) = 
+
 
 end

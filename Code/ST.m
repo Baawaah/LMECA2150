@@ -321,7 +321,9 @@ end
     data.Sout_Table(1,1) = data.result(1).p * data.Sout_Pe_ratio;
     data.Sout_Table(1,4) = data.result(1).h + data.v_eau*((data.Sout_Table(1,1)-data.result(1).p)*10^5)*data.eta_SiC;
     data.Sout_Table(1,2) = XSteam('T_ph',data.Sout_Table(1,1),data.Sout_Table(1,4));
- 
+    data.Sout_Table(1,3) = XSteam('v_ph',data.Sout_Table(1,1),data.Sout_Table(1,4));
+    data.Sout_Table(1,5) = XSteam('s_ph',data.Sout_Table(1,1),data.Sout_Table(1,4));
+    
     % Entropy
     % s_i = @(i) data.Table(5,5) - (data.Table(6,5)-data.Table(5,5))*(data.Sout_n+1 - i)/(data.Sout_n+1);
     % Remplissage de TB_sout
@@ -332,9 +334,9 @@ end
     % FLAG Condensor Water FLAG [5] Feedwater FLAG [-5]
      if data.nsout > 0
         %  Input Bleeding
-        data.Sout_Table(3,1) = p_extract(1);
-        data.Sout_Table(3,4) = h_extract(1);
-        data.Sout_Table(3,2) = XSteam('Tsat_p',data.Sout_Table(3,1));
+        data.Sout_Table(3,2) = XSteam('T_ph',p_extract(2),h_extract(2));
+        data.Sout_Table(3,1) = XSteam('psat_T',data.Sout_Table(3,2));
+        data.Sout_Table(3,4) = XSteam('hL_T',data.Sout_Table(3,2));
         data.Sout_Table(3,3) = XSteam('vV_p',data.Sout_Table(3,1));
         data.Sout_Table(3,5) = XSteam('s_ph',data.Sout_Table(3,1),data.Sout_Table(3,4));
         data.Sout_Table(3,6) = -5;
@@ -360,22 +362,22 @@ end
         data.Sout_Table(i*4+3,1) = p_extract(i+1);
         data.Sout_Table(i*4+3,4) = h_extract(i+1);
         data.Sout_Table(i*4+3,2) = XSteam('T_ph',data.Sout_Table(i*4+3,1),data.Sout_Table(i*4+3,4));
-        data.Sout_Table(i*4+3,3) = XSteam('v_pT',data.Sout_Table(i*4+1,1),data.Sout_Table(i*4+1,2));
-        data.Sout_Table(i*4+3,5) = XSteam('s_pT',data.Sout_Table(i*4+1,1),data.Sout_Table(i*4+1,2));
+        data.Sout_Table(i*4+3,3) = XSteam('v_pT',data.Sout_Table(i*4+3,1),data.Sout_Table(i*4+3,2));
+        data.Sout_Table(i*4+3,5) = XSteam('s_pT',data.Sout_Table(i*4+3,1),data.Sout_Table(i*4+3,2));
         data.Sout_Table(i*4+3,6) = -5;
         %data.Sout_Table(i*4+3,4) = XSteam('h_ps',data.Sout_Table(i*4+3,1),data.Sout_Table(i*4+3,5));
         
         % Output Bleeding
         data.Sout_Table(i*4+4,1) = data.Sout_Table(i*4+3,1); 
         data.Sout_Table(i*4+4,2) = XSteam('Tsat_p',data.Sout_Table(i*4+4,1));
-        data.Sout_Table(i*4+4,3) = XSteam('vL_T',data.Sout_Table(i*4+1,2));
+        data.Sout_Table(i*4+4,3) = XSteam('vL_T',data.Sout_Table(i*4+4,2));
         data.Sout_Table(i*4+4,4) = XSteam('hL_T',data.Sout_Table(i*4+4,2));
         data.Sout_Table(i*4+4,5) = XSteam('sL_p',data.Sout_Table(i*4+4,1));
         data.Sout_Table(i*4+4,6) = -5;
         
         %  Input Feedwater
-        data.Sout_Table(i*4+1,1) = data.Sout_Table(1,1);
-        data.Sout_Table(i*4+1,2) = data.Sout_Table(i*4-2,2);
+        data.Sout_Table(i*4+1,1) = data.Sout_Table(i*4-3,1);
+        data.Sout_Table(i*4+1,2) = data.Sout_Table(i*4-3,2);
         data.Sout_Table(i*4+1,3) = XSteam('vL_T',data.Sout_Table(i*4+1,2));
         data.Sout_Table(i*4+1,4) = XSteam('h_pT',data.Sout_Table(i*4+1,1),data.Sout_Table(i*4+1,2));
         data.Sout_Table(i*4+1,5) = XSteam('s_pT',data.Sout_Table(i*4+1,1),data.Sout_Table(i*4+1,2));
@@ -383,26 +385,26 @@ end
         % Output Feedwater
         data.Sout_Table(i*4+2,1) = data.Sout_Table(i*4+1,1);
         data.Sout_Table(i*4+2,2) = data.Sout_Table(i*4+4,2) + data.TpinchEx; 
-        data.Sout_Table(i*4+2,3) = XSteam('vL_T',data.Sout_Table(i*4+1,2));
+        data.Sout_Table(i*4+2,3) = XSteam('vL_T',data.Sout_Table(i*4+2,2));
         data.Sout_Table(i*4+2,4) = XSteam('h_pT',data.Sout_Table(i*4+2,1),data.Sout_Table(i*4+2,2));
-        data.Sout_Table(i*4+2,5) = XSteam('s_pT',data.Sout_Table(i*4+1,1),data.Sout_Table(i*4+1,2));
+        data.Sout_Table(i*4+2,5) = XSteam('s_pT',data.Sout_Table(i*4+2,1),data.Sout_Table(i*4+2,2));
         data.Sout_Table(i*4+2,6) = 5;
     end
     
     
     
     
-    
-    data.Sout_Table(:,[3 5 6])
+    [data.result(1).v data.result(1).s]
+    data.Sout_Table(:,[2 3 5])
 
 
     
     % Connection avec le point 1
-      data.result(1).p = data.Sout_Table(data.nsout*4+2,1);
-      data.result(1).T = data.Sout_Table(data.nsout*4+2,2);
-      data.result(1).v = data.Sout_Table(data.nsout*4+2,3);
-      data.result(1).h = data.Sout_Table(data.nsout*4+2,4);
-      data.result(1).s = data.Sout_Table(data.nsout*4+2,5);
+%       data.result(1).p = data.Sout_Table(data.nsout*4+2,1);
+%       data.result(1).T = data.Sout_Table(data.nsout*4+2,2);
+%       data.result(1).v = data.Sout_Table(data.nsout*4+2,3);
+%       data.result(1).h = data.Sout_Table(data.nsout*4+2,4);
+%       data.result(1).s = data.Sout_Table(data.nsout*4+2,5);
 %     % Calcule des debits
 %     TB_sout_A = zeros(data.Sout_n,data.Sout_n);
 %     TB_sout_B = zeros(data.Sout_n, 1);
@@ -452,29 +454,16 @@ end
     data.result(22).ex = exergy(data.result(22).h, data.h_ref, data.result(22).s, data.s_ref, data.T0);
     
 %% Reheating
-if options.reheat>0
-    for i=1:options.reheat
-        data.result(50+i).t = data.result(30).t;
-        data.result(50+i).p = data.TurbHP_p_out;
-        data.result(50+i).h = XSteam('h_pT', data.result(50+i).p, data.result(50+i).t);
-        data.result(50+i).s = XSteam('s_pT', data.result(50+i).p, data.result(50+i).t);
-        data.result(50+i).x = XSteam('x_ph', data.result(50+i).p, data.result(50+i).h);
-        data.result(50+i).ex = exergy(data.result(50+i).h, data.h_ref, data.result(50+i).s, data.s_ref, data.T0);
-    end
-end
-
-%% Feed-heating 
-if options.nsout>0
-% fluide chaud amene de maniere isobare jusqu a etat liquide sature
-    for i=1:options.nsout
-        data.result(70+i).p = data.result(60+i).p;
-        data.result(70+i).x = 0; %liquide sature
-        data.result(70+i).t = XSteam('Tsat_p',data.result(70+i).p);
-        data.result(70+i).s = XSteam('sL_p',data.result(70+i).p);
-        data.result(70+i).h = XSteam('hL_p',data.result(70+i).p);
-        data.result(70+i).ex = exergy(data.result(70+i).h, data.h_ref, data.result(70+i).s, data.s_ref, data.T0);
-    end
-end
+% if data.reheat>0
+%     for i=1:data.reheat
+%         data.result(50+i).T = data.result(30).T;
+%         data.result(50+i).p = data.TurbHP_p_out;
+%         data.result(50+i).h = XSteam('h_pT', data.result(50+i).p, data.result(50+i).T);
+%         data.result(50+i).s = XSteam('s_pT', data.result(50+i).p, data.result(50+i).T);
+%         data.result(50+i).x = XSteam('x_ph', data.result(50+i).p, data.result(50+i).h);
+%         data.result(50+i).ex = exergy(data.result(50+i).h, data.h_ref, data.result(50+i).s, data.s_ref, data.T0);
+%     end
+% end
  
 %% Display
     if display == true
