@@ -12,23 +12,23 @@ function [ETA XMASSFLOW DATEN DATEX DAT MASSFLOW COMBUSTION] = ST(P_e,options,di
 % OPTIONS is a structure containing :
 %   -options.nsout     [-] : Number of feed-heating 
 %   -options.reheat    [-] : Number of reheating
-%   -options.T_max     [°C] : Maximum steam temperature
-%   -options.T_cond_out[°C] : Condenseur cold outlet temperature
+%   -options.T_max     [Â°C] : Maximum steam temperature
+%   -options.T_cond_out[Â°C] : Condenseur cold outlet temperature
 %   -options.p3_hp     [bar] : Maximum pressure
 %   -options.drumFlag  [K] : if =1 then drum if =0 => no drum. 
 %   -options.eta_mec   [-] : mecanic efficiency of shafts bearings
 %   -options.comb is a structure containing combustion data : 
-%       -comb.Tmax     [°C] : maximum combustion temperature
+%       -comb.Tmax     [Â°C] : maximum combustion temperature
 %       -comb.lambda   [-] : air excess
 %       -comb.x        [-] : the ratio O_x/C. Example 0.05 in CH_1.2O_0.05
 %       -comb.y        [-] : the ratio H_y/C. Example 1.2 in CH_1.2O_0.05
 %   -options.p_3       [-] : High pressure after last reheating
 %   -options.x4        [-] : Vapor ratio [gaseous/liquid] (titre)
-%   -options.T0        [°C] : Reference temperature
-%   -options.TpinchSub [°C] : Temperature pinch at the subcooler
-%   -options.TpinchEx  [°C] : Temperature pinch at a heat exchanger
-%   -options.TpinchCond[°C] : Temperature pinch at condenser 
-%   -options.Tdrum     [°C] : drum temperature
+%   -options.T0        [Â°C] : Reference temperature
+%   -options.TpinchSub [Â°C] : Temperature pinch at the subcooler
+%   -options.TpinchEx  [Â°C] : Temperature pinch at a heat exchanger
+%   -options.TpinchCond[Â°C] : Temperature pinch at condenser 
+%   -options.Tdrum     [Â°C] : drum temperature
 %   -option.eta_SiC    [-] : Isotrenpic efficiency for compression
 %   -option.eta_SiT    [-] : Isotrenpic efficiency for Turbine
 % DISPLAY = 1 or 0. If 1, then the code should plot graphics. If 0, then 
@@ -61,7 +61,7 @@ function [ETA XMASSFLOW DATEN DATEX DAT MASSFLOW COMBUSTION] = ST(P_e,options,di
 %   -datex(6) : perte_chemex [W]
 %   -datex(7) : perte_transex[W]
 % DAT is a matrix containing :
-% dat = {T_1       , T_2       , ...       , T_4;  [°C]
+% dat = {T_1       , T_2       , ...       , T_4;  [Â°C]
 %        p_1       , p_2       , ...       , p_4;  [bar]
 %        h_1       , h_2       , ...       , h_4;  [kJ/kg]
 %        s_1       , s_2       , ...       , s_4;  [kJ/kg/K]
@@ -91,69 +91,69 @@ if nargin<3
     if nargin<2
         options = struct();
         if nargin<1
-            P_e = 250e6; % [W] Puissance énergétique de l'installation
+            P_e = 250e6; % [W] Puissance Ã©nergÃ©tique de l'installation
         end
     end
 end
 
 %% Input initialisation
-%   -options.T0        [°C] : Reference temperature
+%   -options.T0        [Â°C] : Reference temperature
 if isfield(options,'T_0')           
     T_0 = options.T_0;    
 else
-    T_0 = 288.15;  % [éC] 
+    T_0 = 288.15;  % [Ã©C] 
 end
 %   -options.nsout     [-] : Number of feed-heating
 if isfield(options,'nsout')           
     data.nsout = options.nsout;    
 else
-    data.nsout = 5;  % [éC] 
+    data.nsout = 5;  % [Ã©C] 
 end
 %   -options.reheat    [-] : Number of reheating
 if isfield(options,'reheat')           
     data.reheat = options.reheat;    
 else
-    data.reheat = 5;  % [éC] 
+    data.reheat = 5;  % [Ã©C] 
 end
-%   -options.T_max     [°C] : Maximum steam temperature
+%   -options.T_max     [Â°C] : Maximum steam temperature
 if isfield(options,'T_max')           
     data.T_max = options.T_max;    
 else
-    data.T_max = 525;  % [éC] 
+    data.T_max = 525;  % [Ã©C] 
 end
-%   -options.T_cond_out[°C] : Condenseur cold outlet temperature
+%   -options.T_cond_out[Â°C] : Condenseur cold outlet temperature
 if isfield(options,'T_cond_out')           
     data.T_cond_out = options.T_cond_out;    
 else
-    data.T_cond_out = 15;  % [éC] 
+    data.T_cond_out = 15;  % [Ã©C] 
 end
 %   -options.p3_hp     [bar] : Maximum pressure
 if isfield(options,'p3_hp')           
     data.p3_hp = options.p3_hp;    
 else
-    data.p3_hp = 15;  % [éC] 
+    data.p3_hp = 15;  % [Ã©C] 
 end
 %   -options.drumFlag  [K] : if =1 then drum if =0 => no drum. 
 if isfield(options,'drumFlag')           
     data.drumFlag = options.drumFlag;    
 else
-    data.drumFlag = 1;  % [éC] 
+    data.drumFlag = 1;  % [Ã©C] 
 end
 %   -options.eta_mec   [-] : mecanic efficiency of shafts bearings
 if isfield(options,'eta_mec')           
     data.eta_mec = options.eta_mec;    
 else
-    data.eta_mec = 0.9;  % [éC] 
+    data.eta_mec = 0.9;  % [Ã©C] 
 end
 %   -options.comb is a structure containing combustion data : 
-%       -comb.Tmax     [°C] : maximum combustion temperature
+%       -comb.Tmax     [Â°C] : maximum combustion temperature
 %       -comb.lambda   [-] : air excess
 %       -comb.x        [-] : the ratio O_x/C. Example 0.05 in CH_1.2O_0.05
 %       -comb.y        [-] : the ratio H_y/C. Example 1.2 in CH_1.2O_0.05
 if isfield(options,'comb')           
     data.comb = options.comb;    
 else
-    data.comb.Tmax   = 1500;  % [éC] 
+    data.comb.Tmax   = 1500;  % [Ã©C] 
     data.comb.lambda =  0.6;  % [-] 
     data.comb.x      = 0.05;
     data.comb.y      =  1.2;
@@ -170,25 +170,25 @@ if isfield(options,'x4')
 else
     data.x4 = 0.5;   
 end
-%   -options.TpinchSub [°C] : Temperature pinch at the subcooler
+%   -options.TpinchSub [Â°C] : Temperature pinch at the subcooler
 if isfield(options,'TpinchSub')           
     data.TpinchSub = options.TpinchSub;    
 else
     data.TpinchSub = 5;   
 end
-%   -options.TpinchEx  [°C] : Temperature pinch at a heat exchanger
+%   -options.TpinchEx  [Â°C] : Temperature pinch at a heat exchanger
 if isfield(options,'TpinchEx')           
     data.TpinchEx = options.TpinchEx;    
 else
     data.TpinchEx = 5;   
 end
-%   -options.TpinchCond[°C] : Temperature pinch at condenser 
+%   -options.TpinchCond[Â°C] : Temperature pinch at condenser 
 if isfield(options,'TpinchCond')           
     data.TpinchCond = options.TpinchCond;    
 else
     data.TpinchCond = 5;   
 end
-%   -options.Tdrum     [°C] : drum temperature
+%   -options.Tdrum     [Â°C] : drum temperature
 if isfield(options,'Tdrum')           
     data.Tdrum = options.Tdrum;    
 else
@@ -294,9 +294,9 @@ end
     data.result(1).x = 0;
     data.result(1).ex = exergy(data.result(1).h, data.h_ref, data.result(1).s, data.s_ref, data.T0);
 %% Bleeding
-    % TB_sout est le tableau des états  du feedwater se trouvant dans le 
-    % soutirage qui sera construit en parallele avec la matrice de résolution 
-    % des débits
+    % TB_sout est le tableau des Ã©tats  du feedwater se trouvant dans le 
+    % soutirage qui sera construit en parallele avec la matrice de rÃ©solution 
+    % des dÃ©bits
     
     % Turbine Extraction data.Sout_n    
     p_extract = linspace(data.result(32).p,data.result(4).p,data.nsout+2);
@@ -326,7 +326,7 @@ end
     % s_i = @(i) data.Table(5,5) - (data.Table(6,5)-data.Table(5,5))*(data.Sout_n+1 - i)/(data.Sout_n+1);
     % Remplissage de TB_sout
     % p T v h s
-    % Chaque niveau possède 2 pts waterfeed and bleeding
+    % Chaque niveau possÃ¨de 2 pts waterfeed and bleeding
     % Reheat Block
     % Just pour chauffer un peu l'eau du soutirage ici 5 degree
     % FLAG Condensor Water FLAG [5] Feedwater FLAG [-5]
@@ -420,7 +420,7 @@ end
 %         end
 %         TB_sout_B(i) = H_tfo - H_tfi;
 %     end
-%     % Calcule des débits
+%     % Calcule des dÃ©bits
 %     data.Sout_deb = (-1)*(TB_sout_A\TB_sout_B);
 % 
 %     data.Table(12,3) = data.Table(12,3) + sum(data.Sout_deb);
@@ -465,9 +465,14 @@ end
 
 %% Feed-heating 
 if options.nsout>0
+% fluide chaud amene de maniere isobare jusqu a etat liquide sature
     for i=1:options.nsout
         data.result(70+i).p = data.result(60+i).p;
         data.result(70+i).x = 0; %liquide sature
+        data.result(70+i).t = XSteam('Tsat_p',data.result(70+i).p);
+        data.result(70+i).s = XSteam('sL_p',data.result(70+i).p);
+        data.result(70+i).h = XSteam('hL_p',data.result(70+i).p);
+        data.result(70+i).ex = exergy(data.result(70+i).h, data.h_ref, data.result(70+i).s, data.s_ref, data.T0);
     end
 end
  
