@@ -464,6 +464,21 @@ end
 %         data.result(50+i).ex = exergy(data.result(50+i).h, data.h_ref, data.result(50+i).s, data.s_ref, data.T0);
 %     end
 % end
+
+%% Fraction soutirages (avant degazeur)
+%resoudre systeme Ax = b avec X les soutirages
+%A_bf_deg = zeros(n_sout, n_sout);
+%b = zeros(n_sout,1);
+%for i=1:n_sout
+%    for j=1:n_sout
+%        if i<j
+%            A_bf_deg(i,j) = (data.result(70+i)-data.result(70+i-1))-(data.result(90+i)-data.result(90+i-1));
+%        elseif i==j
+%            A_bf_deg(i,j) = (data.result(60+i)-data.result(70+i))-(data.result(90+i)-data.result(90+i-1));
+%        else
+%            A_bf_deg(i,j) = -(data.result(90+i)-data.result(90+i-1));
+%    end
+%end
  
 %% Display
     if display == true
