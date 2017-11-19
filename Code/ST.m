@@ -465,6 +465,15 @@ end
 %     end
 % end
 
+%% Calcule du nombre de desurchauffes :
+count_desurch = 0;
+for i=1:n_sout
+    while (data.result(60+n_sout).T < data.result(60+n_sout-i)) %tant que T_HP < T_soutire
+        count_desurch=count_desurch+1;
+    end
+end
+
+
 %% Fraction soutirages (avant degazeur)
 %resoudre systeme Ax = b avec X les soutirages
 A_bf_deg = zeros(n_sout, n_sout); %A_before_degazeur
