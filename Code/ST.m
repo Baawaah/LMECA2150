@@ -467,18 +467,56 @@ end
 
 %% Fraction soutirages (avant degazeur)
 %resoudre systeme Ax = b avec X les soutirages
-%A_bf_deg = zeros(n_sout, n_sout);
-%b = zeros(n_sout,1);
-%for i=1:n_sout
-%    for j=1:n_sout
-%        if i<j
-%            A_bf_deg(i,j) = (data.result(70+i)-data.result(70+i-1))-(data.result(90+i)-data.result(90+i-1));
-%        elseif i==j
-%            A_bf_deg(i,j) = (data.result(60+i)-data.result(70+i))-(data.result(90+i)-data.result(90+i-1));
-%        else
-%            A_bf_deg(i,j) = -(data.result(90+i)-data.result(90+i-1));
-%    end
-%end
+A_bf_deg = zeros(n_sout, n_sout); %A_before_degazeur
+b_bf = zeros(n_sout,1);
+%remplissage matrice A_bf
+for i=1:n_sout
+   for j=1:n_sout
+       if i==1
+           A_bf_deg(i,j) = -(data.result(90).h-data.result(80).h)+(data.result(100).h-data.result(120+i).h); %juste avant le condenseur
+       elseif i<j
+           A_bf_deg(i,j) = (data.result(70+i).h-data.result(120+i+1).h)-(data.result(90+i).h-data.result(90+i-1).h);
+       elseif i==j
+           A_bf_deg(i,j) = (data.result(70+i).h-data.result(60+i).h)-(data.result(90+i).h-data.result(90+i-1).h);
+       else
+           A_bf_deg(i,j) = -(data.result(90+i).h-data.result(90+i-1)).h;
+       end
+   end
+end
+%remplissage termes independants b_bf
+for i=1:n_sout
+    if i==1
+        b_bf(i,1) = data.result(90).h-data.result(80).h;
+    end
+    b_bf(i,1) = data.result(90+i).h-data.result(90+i-1).h;
+end
+
+%% Fraction soutirages (apres degazeur)
+%resoudre systeme Ax = b avec X les soutirages
+A_af_deg = zeros(n_sout, n_sout); %A_after_degazeur
+b_af = zeros(n_sout,1);
+%remplissage matrice A_bf
+for i=1:n_sout
+   for j=1:n_sout
+       if i==n_sout
+           A_af_deg(i,j) = -(data.result(1).h-data.result(90+i-1).h); %juste avant la pompe chaudiere
+       elseif i<j
+           A_af_deg(i,j) =  (data.result(70+i).h-data.result(120+i+1).h)-(data.result(90+i).h-data.result(90+i-1).h);
+       elseif i==j
+           A_af_deg(i,j) =  (data.result(70+i).h-data.result(60+i).h)-(data.result(90+i).h-data.result(90+i-1).h);
+       else
+           A_af_deg(i,j) = -(data.result(90+i).h-data.result(90+i-1).h);
+       end
+   end
+end
+%remplissage termes independants b_bf
+for i=1:n_sout
+    if i==1
+        b_af(i,1) = data.result(90).h-data.result(80).h;
+    end
+    b_af(i,1) = data.result(90+i).h-data.result(90+i-1).h;
+end
+   
  
 %% Display
     if display == true
