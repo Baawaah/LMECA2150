@@ -287,7 +287,7 @@ end
     XSteam('Tsat_p',data.result(4).p)
 %% Condensor
     data.result(1).p = data.result(4).p;
-    data.result(1).T = XSteam('Tsat_p',data.result(1).p);
+    data.result(1).T = XSteam('Tsat_p',data.result(1).p); %quid de T_cond_out???
     data.result(1).h = XSteam('hL_p', data.result(1).p);
     data.result(1).s = XSteam('sL_p', data.result(1).p);
     data.result(1).v = XSteam('vL_p',data.result(1).p);
@@ -432,12 +432,12 @@ end
 %% Steam Generator
 
 % Etat 2
-    data.result(20).p = data.result(3).p;
+    data.result(20).p = data.result(4).p;
      %data.result(20).p = data.result(3).p*(1+data.SG_ploss); %OLD
     h20_s = data.result(1).h + data.v_eau*((data.result(20).p-data.result(1).p)*10^5); %delta_h = w_m car isentropique adiabatique, q=0, w_f=0)
     data.result(20).h = data.result(1).h - data.eta_SiC*(data.result(1).h-h20_s);
      %data.result(20).h = data.result(1).h + data.v_eau*((data.result(20).p-data.result(1).p)*10^5)*data.eta_SiC;
-    data.result(20).T = data.result(1).T ; %difference de temperature negligeable, decommenter ligne suivante pour le prouver...
+    data.result(20).T = data.result(4).T ; %difference de temperature negligeable, decommenter ligne suivante pour le prouver...
                         %...+(1/1000*10e5/10e3-0.006*(data.result(20).p-data.result(1).p))/4.18;
                         %%pour etre plus precis
      %data.result(20).T = XSteam('T_ph',data.result(20).p,data.result(20).h); %OLD
@@ -446,6 +446,15 @@ end
     data.result(20).x = 0/0;
      %data.result(20).x = XSteam('x_ph',data.result(20).p,data.result(20).h); %OLD
     data.result(20).ex = exergy(data.result(20).h, data.h_ref,data.result(20).s,data.s_ref,data.T0);
+    
+    %% Condensor
+    data.result(1).p = data.result(4).p;
+    data.result(1).T = 33;%XSteam('Tsat_p',data.result(1).p);
+    data.result(1).h = XSteam('hL_p', data.result(1).p);
+    data.result(1).s = XSteam('sL_p', data.result(1).p);
+    data.result(1).v = XSteam('vL_p',data.result(1).p);
+    data.result(1).x = 0;
+    data.result(1).ex = exergy(data.result(1).h, data.h_ref, data.result(1).s, data.s_ref, data.T0);
 
 % Etat 2'
     data.result(21).p = data.result(3).p;
