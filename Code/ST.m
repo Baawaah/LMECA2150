@@ -433,17 +433,19 @@ end
 
 % Etat 2
     data.result(20).p = data.result(3).p;
-     %data.result(20).p = data.result(3).p*(1+data.SG_ploss);
-    h20_s = data.result(1).h + data.v_eau*((data.result(20).p-data.result(1).p)*10^5);
+     %data.result(20).p = data.result(3).p*(1+data.SG_ploss); %OLD
+    h20_s = data.result(1).h + data.v_eau*((data.result(20).p-data.result(1).p)*10^5); %delta_h = w_m car isentropique adiabatique, q=0, w_f=0)
     data.result(20).h = data.result(1).h - data.eta_SiC*(data.result(1).h-h20_s);
      %data.result(20).h = data.result(1).h + data.v_eau*((data.result(20).p-data.result(1).p)*10^5)*data.eta_SiC;
-    data.result(20).T = data.result(1).T + (1/1000*10e5/10e3-0.006*(data.result(20).p-data.result(1).p))/4.18;
-     %data.result(20).T = XSteam('T_ph',data.result(20).p,data.result(20).h);
+    data.result(20).T = data.result(1).T ; %difference de temperature negligeable, decommenter ligne suivante pour le prouver...
+                        %...+(1/1000*10e5/10e3-0.006*(data.result(20).p-data.result(1).p))/4.18;
+                        %%pour etre plus precis
+     %data.result(20).T = XSteam('T_ph',data.result(20).p,data.result(20).h); %OLD
     data.result(20).s = data.result(1).s;
-     %data.result(20).s = XSteam('s_ph',data.result(20).p,data.result(20).h);
+     %data.result(20).s = XSteam('s_ph',data.result(20).p,data.result(20).h); %OLD
     data.result(20).v = XSteam('v_pT',data.result(20).p,data.result(20).T);
     data.result(20).x = 0/0;
-     %data.result(20).x = XSteam('x_ph',data.result(20).p,data.result(20).h);
+     %data.result(20).x = XSteam('x_ph',data.result(20).p,data.result(20).h); %OLD
     data.result(20).ex = exergy(data.result(20).h, data.h_ref,data.result(20).s,data.s_ref,data.T0);
 
 % Etat 2'
