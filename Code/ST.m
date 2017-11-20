@@ -287,7 +287,7 @@ end
     XSteam('Tsat_p',data.result(4).p)
 %% Condensor
     data.result(1).p = data.result(4).p;
-    data.result(1).T = XSteam('Tsat_p',data.result(1).p); %quid de T_cond_out???
+    data.result(1).T = XSteam('Tsat_p',data.result(1).p);  %quid de T_cond_out???
     data.result(1).h = XSteam('hL_p', data.result(1).p);
     data.result(1).s = XSteam('sL_p', data.result(1).p);
     data.result(1).v = XSteam('vL_p',data.result(1).p);
