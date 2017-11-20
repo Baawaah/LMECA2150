@@ -427,31 +427,44 @@ end
 % 
 %     data.Table(12,3) = data.Table(12,3) + sum(data.Sout_deb);
 %     data.Sout_Table(1,3) = data.Table(12,3);
+
+
 %% Steam Generator
 
-    data.result(20).p = data.result(3).p*(1+data.SG_ploss);
-    data.result(20).h = data.result(1).h + data.v_eau*((data.result(20).p-data.result(1).p)*10^5)*data.eta_SiC;
-    data.result(20).T = XSteam('T_ph',data.result(20).p,data.result(20).h);
-    data.result(20).s = XSteam('s_ph',data.result(20).p,data.result(20).h);
+% Etat 2
+    data.result(20).p = data.result(3).p;
+     %data.result(20).p = data.result(3).p*(1+data.SG_ploss);
+    h20_s = data.result(1).h + data.v_eau*((data.result(20).p-data.result(1).p)*10^5);
+    data.result(20).h = data.result(1).h - data.eta_SiC*(data.result(1).h-h20_s);
+     %data.result(20).h = data.result(1).h + data.v_eau*((data.result(20).p-data.result(1).p)*10^5)*data.eta_SiC;
+    data.result(20).T = data.result(1).T + (1/1000*10e5/10e3-0.006*(data.result(20).p-data.result(1).p))/4.18;
+     %data.result(20).T = XSteam('T_ph',data.result(20).p,data.result(20).h);
+    data.result(20).s = data.result(1).s;
+     %data.result(20).s = XSteam('s_ph',data.result(20).p,data.result(20).h);
     data.result(20).v = XSteam('v_pT',data.result(20).p,data.result(20).T);
-    data.result(20).x = XSteam('x_ph',data.result(20).p,data.result(20).h);
+    data.result(20).x = 0/0;
+     %data.result(20).x = XSteam('x_ph',data.result(20).p,data.result(20).h);
     data.result(20).ex = exergy(data.result(20).h, data.h_ref,data.result(20).s,data.s_ref,data.T0);
 
-    data.result(21).p = data.result(3).p*(1+data.SG_ploss/2);
-    data.result(21).h = XSteam('hL_p', data.result(21).p);
+% Etat 2'
+    data.result(21).p = data.result(3).p;
+     %data.result(21).p = data.result(3).p*(1+data.SG_ploss/2);
     data.result(21).T = XSteam('Tsat_p',data.result(21).p);
+    data.result(21).h = XSteam('hL_p', data.result(21).p);
     data.result(21).s = XSteam('sL_p',data.result(21).p);
     data.result(21).v = XSteam('vL_p',data.result(21).p);
     data.result(21).x = 0;
     data.result(21).ex = exergy(data.result(21).h, data.h_ref, data.result(21).s, data.s_ref, data.T0);
 
+% Etat 2''    
     data.result(22).p = data.result(3).p;
-    data.result(22).h = XSteam('hV_p',data.result(22).p);
-    data.result(22).T = XSteam('Tsat_p',data.result(22).p);
-    data.result(22).s = XSteam('sV_p',data.result(22).p);
-    data.result(22).v = XSteam('vV_p',data.result(22).p);
+    data.result(22).T = XSteam('Tsat_p',data.result(21).p);
+    data.result(22).h = XSteam('hV_p', data.result(21).p);
+    data.result(22).s = XSteam('sV_p',data.result(21).p);
+    data.result(22).v = XSteam('vV_p',data.result(21).p);
     data.result(22).x = 1;
     data.result(22).ex = exergy(data.result(22).h, data.h_ref, data.result(22).s, data.s_ref, data.T0);
+    
     
 %% Reheating
 % if data.reheat>0
@@ -465,76 +478,91 @@ end
 %     end
 % end
 
-%% Calcule du nombre de desurchauffes :
-count_desurch = 0;
-for i=1:n_sout
-    while (data.result(60+n_sout).T < data.result(60+n_sout-i)) %tant que T_HP < T_soutire
-        count_desurch=count_desurch+1;
-    end
-end
+% %% Calcule du nombre de desurchauffes :
+% count_desurch = 0;
+% for i=1:n_sout
+%     while (data.result(60+n_sout).T < data.result(60+n_sout-i)) %tant que T_HP < T_soutire
+%         count_desurch=count_desurch+1;
+%     end
+% end
 
 
-%% Fraction soutirages (avant degazeur)
-%resoudre systeme Ax = b avec X les soutirages
-A_bf_deg = zeros(n_sout, n_sout); %A_before_degazeur
-b_bf = zeros(n_sout,1);
-%remplissage matrice A_bf
-for i=1:n_sout
-   for j=1:n_sout
-       if i==1
-           A_bf_deg(i,j) = -(data.result(90).h-data.result(80).h)+(data.result(100).h-data.result(120+i).h); %juste avant le condenseur
-       elseif i<j
-           A_bf_deg(i,j) = (data.result(70+i).h-data.result(120+i+1).h)-(data.result(90+i).h-data.result(90+i-1).h);
-       elseif i==j
-           A_bf_deg(i,j) = (data.result(70+i).h-data.result(60+i).h)-(data.result(90+i).h-data.result(90+i-1).h);
-       else
-           A_bf_deg(i,j) = -(data.result(90+i).h-data.result(90+i-1)).h;
-       end
-   end
-end
-%remplissage termes independants b_bf
-for i=1:n_sout
-    if i==1
-        b_bf(i,1) = data.result(90).h-data.result(80).h;
-    end
-    b_bf(i,1) = data.result(90+i).h-data.result(90+i-1).h;
-end
-
-%% Fraction soutirages (apres degazeur)
-%resoudre systeme Ax = b avec X les soutirages
-A_af_deg = zeros(n_sout, n_sout); %A_after_degazeur
-b_af = zeros(n_sout,1);
-%remplissage matrice A_bf
-for i=1:n_sout
-   for j=1:n_sout
-       if i==n_sout
-           A_af_deg(i,j) = -(data.result(1).h-data.result(90+i-1).h); %juste avant la pompe chaudiere
-       elseif i<j
-           A_af_deg(i,j) =  (data.result(70+i).h-data.result(120+i+1).h)-(data.result(90+i).h-data.result(90+i-1).h);
-       elseif i==j
-           A_af_deg(i,j) =  (data.result(70+i).h-data.result(60+i).h)-(data.result(90+i).h-data.result(90+i-1).h);
-       else
-           A_af_deg(i,j) = -(data.result(90+i).h-data.result(90+i-1).h);
-       end
-   end
-end
-%remplissage termes independants b_bf
-for i=1:n_sout
-    if i==1
-        b_af(i,1) = data.result(90).h-data.result(80).h;
-    end
-    b_af(i,1) = data.result(90+i).h-data.result(90+i-1).h;
-end
+% %% Fraction soutirages (avant degazeur)
+% %resoudre systeme Ax = b avec X les soutirages
+% A_bf_deg = zeros(n_sout, n_sout); %A_before_degazeur
+% b_bf = zeros(n_sout,1);
+% %remplissage matrice A_bf
+% for i=1:n_sout
+%    for j=1:n_sout
+%        if i==1
+%            A_bf_deg(i,j) = -(data.result(90).h-data.result(80).h)+(data.result(100).h-data.result(120+i).h); %juste avant le condenseur
+%        elseif i<j
+%            A_bf_deg(i,j) = (data.result(70+i).h-data.result(120+i+1).h)-(data.result(90+i).h-data.result(90+i-1).h);
+%        elseif i==j
+%            A_bf_deg(i,j) = (data.result(70+i).h-data.result(60+i).h)-(data.result(90+i).h-data.result(90+i-1).h);
+%        else
+%            A_bf_deg(i,j) = -(data.result(90+i).h-data.result(90+i-1)).h;
+%        end
+%    end
+% end
+% %remplissage termes independants b_bf
+% for i=1:n_sout
+%     if i==1
+%         b_bf(i,1) = data.result(90).h-data.result(80).h;
+%     end
+%     b_bf(i,1) = data.result(90+i).h-data.result(90+i-1).h;
+% end
+% 
+% %% Fraction soutirages (apres degazeur)
+% %resoudre systeme Ax = b avec X les soutirages
+% A_af_deg = zeros(n_sout, n_sout); %A_after_degazeur
+% b_af = zeros(n_sout,1);
+% %remplissage matrice A_bf
+% for i=1:n_sout
+%    for j=1:n_sout
+%        if i==n_sout
+%            A_af_deg(i,j) = -(data.result(1).h-data.result(90+i-1).h); %juste avant la pompe chaudiere
+%        elseif i<j
+%            A_af_deg(i,j) =  (data.result(70+i).h-data.result(120+i+1).h)-(data.result(90+i).h-data.result(90+i-1).h);
+%        elseif i==j
+%            A_af_deg(i,j) =  (data.result(70+i).h-data.result(60+i).h)-(data.result(90+i).h-data.result(90+i-1).h);
+%        else
+%            A_af_deg(i,j) = -(data.result(90+i).h-data.result(90+i-1).h);
+%        end
+%    end
+% end
+% %remplissage termes independants b_bf
+% for i=1:n_sout
+%     if i==1
+%         b_af(i,1) = data.result(90).h-data.result(80).h;
+%     end
+%     b_af(i,1) = data.result(90+i).h-data.result(90+i-1).h;
+% end
    
  
 %% Display
     if display == true
         figure
+        T=linspace(0,375,1000);
+    
+        for i=1:length(T)
+            S1(i)=XSteam('sL_T',T(i));
+            S2(i)=XSteam('sV_T',T(i));
+        end
+    
+        S=[S1,S2];
+        %S=S1;
+        T=[T,T];
+    
+        
+        xlabel('S [kJ/kg K]')
+        ylabel('T [degC]')
         subplot(2,2,1);
-        hold on;
+        plot(S,T); hold on
+        %hold on;
         title('Rankine-Hirn Cycle')
-        xlabel('s[kJ/kgK]')
-        ylabel('T[K]')
+        %xlabel('s[kJ/kgK]')
+        %ylabel('T[K]')
         plot(data.result(1).s,data.result(1).T,'.','MarkerSize',15)
         text(data.result(1).s,data.result(1).T,'1')
         plot(data.result(20).s,data.result(20).T,'.','MarkerSize',15)
@@ -555,9 +583,9 @@ end
         text(data.result(4).s,data.result(4).T,'4')
 
         plot([data.result(1).s data.result(20).s], [data.result(1).T data.result(20).T])
-        plot([data.result(20).s data.result(3).s], [data.result(20).T data.result(3).T] )
-        %plot([data.result(21).s data.result(22).s], [data.result(21).T data.result(22).T] )
-        %plot([data.result(22).s data.result(3).s], [data.result(22).T data.result(3).T] )
+        %splot([data.result(20).s data.result(3).s], [data.result(20).T data.result(3).T] )
+        plot([data.result(21).s data.result(22).s], [data.result(21).T data.result(22).T] )
+        plot([data.result(22).s data.result(3).s], [data.result(22).T data.result(3).T] )
         plot([data.result(3).s data.result(31).s], [data.result(3).T data.result(31).T] )
         plot([data.result(31).s data.result(311).s], [data.result(31).T data.result(311).T] )
         plot([data.result(311).s data.result(32).s], [data.result(311).T data.result(32).T] )
