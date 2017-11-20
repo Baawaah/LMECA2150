@@ -447,14 +447,6 @@ end
      %data.result(20).x = XSteam('x_ph',data.result(20).p,data.result(20).h); %OLD
     data.result(20).ex = exergy(data.result(20).h, data.h_ref,data.result(20).s,data.s_ref,data.T0);
     
-    %% Condensor
-    data.result(1).p = data.result(4).p;
-    data.result(1).T = 33;%XSteam('Tsat_p',data.result(1).p);
-    data.result(1).h = XSteam('hL_p', data.result(1).p);
-    data.result(1).s = XSteam('sL_p', data.result(1).p);
-    data.result(1).v = XSteam('vL_p',data.result(1).p);
-    data.result(1).x = 0;
-    data.result(1).ex = exergy(data.result(1).h, data.h_ref, data.result(1).s, data.s_ref, data.T0);
 
 % Etat 2'
     data.result(21).p = data.result(3).p;
