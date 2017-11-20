@@ -441,8 +441,7 @@ end
                         %...+(1/1000*10e5/10e3-0.006*(data.result(20).p-data.result(1).p))/4.18;
                         %%pour etre plus precis
      %data.result(20).T = XSteam('T_ph',data.result(20).p,data.result(20).h); %OLD
-    data.result(20).s = data.result(1).s;
-     %data.result(20).s = XSteam('s_ph',data.result(20).p,data.result(20).h); %OLD
+    data.result(20).s = XSteam('s_ph',data.result(20).p,data.result(20).h); %OLD mais a changer..
     data.result(20).v = XSteam('v_pT',data.result(20).p,data.result(20).T);
     data.result(20).x = 0/0;
      %data.result(20).x = XSteam('x_ph',data.result(20).p,data.result(20).h); %OLD
