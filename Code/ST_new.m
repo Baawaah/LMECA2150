@@ -84,8 +84,6 @@ function [ETA XMASSFLOW DATEN DATEX DAT MASSFLOW COMBUSTION] = ST(P_e,options,di
 %       -fum(3) = m_CO2f : massflow of CO2 in exhaust gas [kg/s]
 %       -fum(4) = m_H2Of : massflow of H2O in exhaust gas [kg/s]
 
-
-
 if nargin<3
     display = 1;
     if nargin<2
@@ -95,6 +93,31 @@ if nargin<3
         end
     end
 end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%
+%% n_sout limite a 20  %%
+%% n_reheat limite a 5 %%
+%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Description des etats
+% etat 1  : entrée pompe alimentaire        (sortie dernier resurchauffeur)
+% etat 2  : entrée chaudière                (sortie pompe alimentaire)
+% etat 21 : vapeur sature chaudiere  
+% etat 22 : vapeur surchaufee chaudiere
+% etat 3  : sortie chaudiere avant resurchauffe
+% etat 4  : sortie HP pour resurchauffe
+% etat 5  : sortie chaudiere apres resurchauffe
+% etat 6  : sortie BP                       (entree condenseur)
+% etat 7  : sortie condenseur               (entree pompe) 
+% etats 71->70+nsout+nresur : sortie resurchauffeurs R_I, R_II,...R_nsout
+% etat 8  : sortie pompe apres condenseur   (entrée resurchauffeur R0)
+% etat 9  : sortie resurchauffeur R0        
+% etats 91->90+n_sout+nresur : sortie principale resurchauffeurs R_I, R_II,...R_nsout
+
+
+
+
+
 
 %% Input initialisation
 %   -options.T0        [Â°C] : Reference temperature
@@ -113,7 +136,7 @@ end
 if isfield(options,'reheat')           
     data.reheat = options.reheat;    
 else
-    data.reheat = 5;  % [Ã©C] 
+    data.reheat = 2;  % [Ã©C] 
 end
 %   -options.T_max     [Â°C] : Maximum steam temperature
 if isfield(options,'T_max')           
@@ -254,26 +277,28 @@ end
     data.result(7).x  = 0; %etat liquide sature
     data.result(7).v  = XSteam('vL_p',data.result(7).p);
     data.result(7).ex = exergy(data.result(7).h, data.h_ref, data.result(7).s, data.s_ref, data.T0);
-    
-%% SORTIE CHAUDIERE APRES RESURCHAUFFE ---> OK
-    data.result(5).T  = data.T_max;
-    data.result(5).p  = data.p_3; %haute pression apres derniere resurchauffe
-    data.result(5).h  = XSteam('h_pT', data.result(5).p, data.result(5).T);
-    data.result(5).s  = XSteam('s_pT', data.result(5).p, data.result(5).T);
-    data.result(5).x  = titre_corr(XSteam('x_ph', data.result(5).p, data.result(5).T),data.result(5).h,data.result(5).p);
-    data.result(5).v  = XSteam('v_pT', data.result(5).p,data.result(5).T);
-    data.result(5).ex = exergy(data.result(5).h, data.h_ref, data.result(5).s, data.s_ref, data.T0);
+ 
+if data.reheat>0
+    %% SORTIE CHAUDIERE APRES RESURCHAUFFE ---> OK
+     data.result(5).T  = data.T_max;
+     data.result(5).p  = data.p_3; %haute pression apres derniere resurchauffe
+     data.result(5).h  = XSteam('h_pT', data.result(5).p, data.result(5).T);
+     data.result(5).s  = XSteam('s_pT', data.result(5).p, data.result(5).T);
+     data.result(5).x  = titre_corr(XSteam('x_ph', data.result(5).p, data.result(5).T),data.result(5).h,data.result(5).p);
+     data.result(5).v  = XSteam('v_pT', data.result(5).p,data.result(5).T);
+     data.result(5).ex = exergy(data.result(5).h, data.h_ref, data.result(5).s, data.s_ref, data.T0);
 
-%% SORTIE HP Turbine (pour resurchauffe) ---> OK
-    data.result(4).p = data.result(5).p;
-    s_4_is = data.result(3).s;
-    h_4_is = XSteam('h_ps', data.result(4).p, s_4_is);
-    data.result(4).h  = data.result(3).h + data.eta_SiT(1)*(h_4_is-data.result(3).h);
-    data.result(4).s  = XSteam('s_ph', data.result(4).p, data.result(4).h);
-    data.result(4).T  = XSteam('T_ph', data.result(4).p, data.result(4).h);
-    data.result(4).x  = titre_corr(XSteam('x_ph',data.result(4).p,data.result(4).h),data.result(4).h,data.result(4).p);
-    data.result(4).v  = XSteam('v_pT', data.result(4).p,data.result(4).T);
-    data.result(4).ex = exergy(data.result(4).h, data.h_ref, data.result(4).s, data.s_ref, data.T0);
+    %% SORTIE HP Turbine (pour resurchauffe) ---> OK
+     data.result(4).p = data.result(5).p;
+     s_60_is = data.result(3).s;
+     h_60_is = XSteam('h_ps', data.result(4).p, s_60_is);
+     data.result(4).h  = data.result(3).h + data.eta_SiT(1)*(h_60_is-data.result(3).h);
+     data.result(4).s  = XSteam('s_ph', data.result(4).p, data.result(4).h);
+     data.result(4).T  = XSteam('T_ph', data.result(4).p, data.result(4).h);
+     data.result(4).x  = titre_corr(XSteam('x_ph',data.result(4).p,data.result(4).h),data.result(4).h,data.result(4).p);
+     data.result(4).v  = XSteam('v_pT', data.result(4).p,data.result(4).T);
+     data.result(4).ex = exergy(data.result(4).h, data.h_ref, data.result(4).s, data.s_ref, data.T0);
+end
 
 
     %% IP Turbine ----> !!!!!!!!! PAS OK
@@ -286,23 +311,23 @@ end
     data.result(32).s  = XSteam('s_ph', data.result(32).p, data.result(32).h);
     data.result(32).v  = XSteam('v_ph',data.result(32).p,data.result(32).h);
     data.result(32).ex = exergy(data.result(32).h, data.h_ref, data.result(32).s, data.s_ref, data.T0);
-%% LP Turbine : SORTIE ----> !!!!!!!!! PAS OK
-    data.result(6).p = data.result(32).p*data.TurbLP_comp;
-    s_4_is = data.result(32).s;
-    h_4_is = XSteam('h_ps', data.result(6).p, s_4_is);
-    data.result(6).h  = data.result(32).h + data.eta_SiT(3)*(h_4_is-data.result(32).h);
-    data.result(6).T  = XSteam('T_ph',data.result(4).p,data.result(6).h);
-    data.result(6).x  = XSteam('x_ph', data.result(4).p, data.result(6).h);
-    data.result(6).s  = XSteam('s_ph', data.result(4).p, data.result(6).h);
-    data.result(6).v  = XSteam('v_ph',data.result(4).p,data.result(6).h);
-    data.result(6).ex = exergy(data.result(6).h, data.h_ref, data.result(6).s, data.s_ref, data.T0);
-    data.result(32).p
-    data.result(6).p
-    XSteam('Tsat_p',data.result(4).p)
+%% LP Turbine : SORTIE ----> OK
+% etat isentropique : hyp : temperature fin de detente idem condenseur
+    data.result(60).T = data.T_cond_out;
+    data.result(60).p = XSteam('psat_t', data.result(60).T);
+    s_60_is = data.result(50).s;
+    h_60_is = XSteam('h_ps', data.result(60).p, s_60_is);
+% etat reel
+    data.result(60).h  = data.result(50).h + data.eta_SiT(3)*(h_60_is-data.result(50).h);
+    data.result(60).T  = XSteam('T_ph',data.result(60).p,data.result(60).h);
+    data.result(60).x  = titre_corr(XSteam('x_ph', data.result(60).p, data.result(60).h),data.result(60).h,data.result(60).p);
+    data.result(60).s  = XSteam('s_ph', data.result(60).p, data.result(60).h);
+    data.result(60).v  = XSteam('v_ph',data.result(60).p,data.result(60).h);
+    data.result(60).ex = exergy(data.result(60).h, data.h_ref, data.result(60).s, data.s_ref, data.T0);
     
 %% Soutirages
-    
-delta_h_sout = (data.result(50).h-data.result(60).h)/(data.nsout+1);
+if data.reheat>0    
+    delta_h_sout = (data.result(50).h-data.result(60).h)/(data.nsout+1+data.reheat);
 data.Sout_Table = zeros(data.nsout+4,5);
 for i=1:data.nsout
     data.result(60+i).h = data.result(50).h-delta_h_sout*i;
