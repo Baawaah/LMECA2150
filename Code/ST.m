@@ -541,6 +541,16 @@ end
 %     b_af(i,1) = data.result(90+i).h-data.result(90+i-1).h;
 % end
    
+%% Titre XSteam (correction)
+function x_corr = titre_corr(x_current,h_current,p)
+    if x_current == 0 && h_current<XSteam('hL_p',p)
+        x_corr = nan; 
+    elseif x_current == 1 && h_current>XSteam('hV_p',p)
+        x_corr = nan;
+    else 
+        x_corr = x_current;
+    end    
+end
  
 %% Display
     if display == true
