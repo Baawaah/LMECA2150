@@ -1,4 +1,4 @@
-function [ETA DATEN DATEX DAT MASSFLOW COMBUSTION] = GT(P_e,options,display)
+function [ETA,DATEN,DATEX,DAT,MASSFLOW,COMBUSTION] = GT(P_e,options,display)
 % GT Gas turbine modelisation
 % GT(P_e,options,display) compute the thermodynamics states for a Gas
 % turbine based on several inputs (given in OPTION) and based on a given 
@@ -20,6 +20,11 @@ function [ETA DATEN DATEX DAT MASSFLOW COMBUSTION] = GT(P_e,options,display)
 %                        polytropique interne) for compression
 %   -option.eta_PiT[-] : Intern polytropic efficiency (Rendement
 %                        polytropique interne) for expansion
+%   -options.comb is a structure containing combustion data : 
+%       -comb.Tmax    [°C] : maximum combustion temperature
+%       -comb.lambda  [-] : air excess
+%       -comb.x       [-] : the ratio O_x/C. Example 0.05 in CH_1.2O_0.05
+%       -comb.y       [-] : the ratio H_y/C. Example 1.2 in CH_1.2O_0.05
 %DISPLAY = 1 or 0. If 1, then the code should plot graphics. If 0, then the
 %          do not plot.
 %
@@ -67,7 +72,7 @@ if nargin<3
     if nargin<2
         options = struct();
         if nargin<1
-            P_e = 250e6; % [W] Puissance Ã©nergÃ©tique de l'installation
+            P_e = 50e6; % [W] Puissance Ã©nergÃ©tique de l'installation
         end
     end
 end
@@ -96,7 +101,7 @@ end
 if isfield(options,'k_cc')
     data.k_cc = options.k_cc;
 else
-    data.k_cc = 0.95; 
+    data.k_cc = 0.90; 
 end
 if isfield(options,'T3')
     data.T3 = options.T3;
@@ -106,13 +111,30 @@ end
 if isfield(options,'eta_PiC')
     data.eta_PiC = options.eta_PiC;
 else
-    data.eta_PiC = 0.9; 
+    data.eta_PiC = 0.90; 
 end
 if isfield(options,'eta_PiT')
     data.eta_PiT = options.eta_PiT;
 else
-    data.eta_PiT = 0.9; 
+    data.eta_PiT = 0.90; 
 end
+% OPTION RAJOUTER
+%   -options.comb is a structure containing combustion data : 
+%       -comb.Tmax    [°C] : maximum combustion temperature
+%       -comb.lambda  [-] : air excess
+%       -comb.x       [-] : the ratio O_x/C. Example 0.05 in CH_1.2O_0.05
+%       -comb.y       [-] : the ratio H_y/C. Example 1.2 in CH_1.2O_0.05
+if isfield(options,'comb')
+    data.T3 = options.comb.Tmax+273.15;
+    lambda  = options.comb.lambda;
+    x = options.comb.x;
+    y = options.comb.y;    
+else
+    x = 1; 
+    y = 4;
+    lambda = 3.5;
+end
+
 %% THE CODE
 %% INITIALISATION
 %% AIR
@@ -126,30 +148,30 @@ Cp_a = (0.0004*janaf('c','CO2',300)+0.21*janaf('c','O2',300)+0.78*janaf('c','N2'
 Cp_a_fun = @(T) (0.0004*janaf('c','CO2',T)+0.21*janaf('c','O2',T)+0.78*janaf('c','N2',T))*10^3;
 Cv_a = (Cp_a-R_a);
 gamma_a = Cp_a/Cv_a;
-h_a_fun = @(T) (0.0004*janaf('h','CO2',T)+0.21*janaf('h','O2',T)+0.78*janaf('h','N2',T))*10^3;
+%h_a_fun = @(T) (0.0004*janaf('h','CO2',T)+0.21*janaf('h','O2',T)+0.78*janaf('h','N2',T))*10^3;
 
 %% FUEL
 % CxHy - CH4
-x = 1; y = 4;
+
 ma1    = 34.39*( (x+y/4) / (3*x+y/4) );
-lambda = 3.5;
+
 MmCH4 = 16.04;
-HHV = 55.50*10^3; %[KJ]
+%HHV = 55.50*10^3; %[KJ]
 LHV = 50.00*10^3; %[KJ]
-H_c_298 = -74.87;
+%H_c_298 = -74.87;
 % Cp of the Fuel
 % http://webbook.nist.gov/cgi/cbook.cgi?ID=C74828&Mask=1
 %     298 - 1300         1300 - 6000
-A_g1 = -0.703029;	A_g2 =  85.81217;
-B_g1 =	108.4773;	B_g2 =  11.26467;
-C_g1 = -42.52157;	C_g2 = -2.114146;
-D_g1 =	5.862788;	D_g2 =  0.138190;
-E_g1 =	0.678565;	E_g2 = -26.42221;
-F_g1 = -76.84376;	F_g2 = -153.5327;
-G_g1 =	158.7163;	G_g2 =  224.4143;
-H_g1 = -74.87310;	H_g2 = -74.87310;
+A_g1 = -0.703029;	%A_g2 =  85.81217;
+B_g1 =	108.4773;	%B_g2 =  11.26467;
+C_g1 = -42.52157;	%C_g2 = -2.114146;
+D_g1 =	5.862788;	%D_g2 =  0.138190;
+E_g1 =	0.678565;	%E_g2 = -26.42221;
+%F_g1 = -76.84376;	%F_g2 = -153.5327;
+%G_g1 =	158.7163;	%G_g2 =  224.4143;
+%H_g1 = -74.87310;	%H_g2 = -74.87310;
 Cp_c_fun = @(T) (A_g1 + B_g1*(T/1000) + C_g1*(T/1000)^2 + D_g1*(T/1000)^3 + E_g1/((T/1000)^2))/MmCH4*10^3;
-h_c_fun = @(T) (A_g1*(T/1000) + B_g1*((T/1000)^2)/2 + C_g1*((T/1000)^3)/3 + D_g1*((T/1000)^4)/4 - E_g1/(T/1000) + F_g1 - H_g1 ); 
+%h_c_fun = @(T) (A_g1*(T/1000) + B_g1*((T/1000)^2)/2 + C_g1*((T/1000)^3)/3 + D_g1*((T/1000)^4)/4 - E_g1/(T/1000) + F_g1 - H_g1 ); 
 
 e_c = LHV*1.041*10^3;
 
@@ -186,16 +208,18 @@ data.table(3,4) = Cp_g32*log(data.table(3,2)/data.table(2,2)) + data.table(2,4);
 data.table(3,5) = R_g*data.table(3,2)/data.table(3,1);
 data.table(3,6) = data.table(3,3) - data.T_0*data.table(3,4); 
 %% STATE 4 AFTER TURBINE
-data.table(4,1) = 10^5;
+data.table(4,1) = 101325;
     T4_guess     = data.table(3,2)*(data.table(4,1)/data.table(3,1))^((gamma_a-1)/gamma_a);
     T4_opt_guess = data.table(3,2)*(data.table(4,1)/data.table(2,1))^((gamma_a-1)/gamma_a);
     T4_error = 1;
-    while T4_error > 10^3
-        gamma_guess = (gamma_g_fun(T4_guess)+gamma_g_fun(data.table(3,2)))/2;
+    while T4_error > 10^-6
+        T4_old = T4_guess;
+        gamma_guess = (gamma_g_fun(T4_guess)+gamma_g_fun(data.table(3,2)))/2;      
         T4_guess = data.table(3,2)*(data.table(4,1)/data.table(3,1))^((gamma_guess-1)/gamma_guess);
         T4_opt_guess = data.table(3,2)*(data.table(4,1)/data.table(2,1))^((gamma_guess-1)/gamma_guess);
+        T4_error = abs(T4_guess-T4_old);
     end
-    data.table(4,2) = T4_guess;
+data.table(4,2) = T4_guess;
     %Cp_g43 = (Cp_g_fun(data.table(4,2))+Cp_g_fun(data.table(3,2)))/2;
     %WmT = Cp_g43*(data.table(3,2)-data.table(4,2))
     WmT= 1/data.eta_PiT * gamma_g_fun(data.table(4,2))/(gamma_g_fun(data.table(4,2))-1) * R_g * (data.table(4,2)-data.table(3,2));
@@ -234,7 +258,7 @@ data.table(4,6) = data.table(4,3) - data.T_0*data.table(4,4);
 %   -eta(5) : eta_rotex, compressor-turbine exergy efficiency
 %   -eta(6) : eta_combex, Combustion exergy efficiency
 ETA(1) = Wm/Qcomb;
-ETA(2) = ETA(1)*(1-data.k_mec)
+ETA(2) = ETA(1)*(1-data.k_mec);
 ETA(3) = Pm/(mdot_g*data.table(3,6) - mdot_a*data.table(2,6) );
 ETA(4) = P_e/(mdot_c*e_c);
 ETA(5) = (mdot_g*(data.table(3,3)-data.table(4,3))-mdot_a*(data.table(2,3)-data.table(1,3)))/(mdot_g*(data.table(3,6)-data.table(4,6))-mdot_a*(data.table(2,6)-data.table(1,6)));
@@ -272,6 +296,7 @@ DATEN(2) = abs(WmT_opt)-abs(WmT);
 %   -datex(2) : perte_rotex [W]
 %   -datex(3) : perte_combex [W]
 %   -datex(4) : perte_echex  [W]
+DATEX = 0;
 %% DATA OVERALL
 % DAT is a matrix containing :
 % dat = {T_1       , T_2       , T_3       , T_4; [°C]
@@ -295,19 +320,19 @@ if display == 1
         plot(data.table(i,4)/10^3,data.table(i,2),'b*');
     end
     hold off;
-    title('T-S')
+    title('T-S');
     % Plot P-v
     subplot(2,2,2);
     hold on;
     for i = 1 : length(data.table(:,1))
         plot(data.table(i,5),data.table(i,1),'b*');
     end
-    title('P-v')
+    title('P-v');
     hold off;
 
     %%
     format short;
-    disp('    p[bar]     T[K]      h[KJ]     s[J/K]        v      e[KJ]');
+    disp('    p[bar]     T[K]      h[MJ]     s[J/K]        v      e[KJ]');
     disp([data.table(:,1)/10^5 data.table(:,2) data.table(:,3)/10^3 data.table(:,4) data.table(:,5) data.table(:,6)/10^3]);
     disp('  WmC[KJ]   WmT[KJ]   Wm[KJ]    mdot_g     mdot_c   mdot_a');
     disp([WmC/10^3 WmT/10^3 Wm/10^3 mdot_g mdot_c mdot_a]);
