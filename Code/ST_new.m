@@ -108,12 +108,12 @@ end
 % etat 4  : sortie HP pour resurchauffe
 % etat 5  : sortie chaudiere apres resurchauffe
 % etat 6  : sortie BP                       (entree condenseur)
-% etats 51->50+nsout+nresur : soutirages turbines (etats 6_I, 6_II...)
+% etats sout_turb(1->nsout+nresur) : soutirages turbines (etats 6_I, 6_II...)
 % etat 7  : sortie condenseur               (entree pompe) 
-% etats 71->70+nsout+nresur : sortie resurchauffeurs R_I, R_II,...R_nsout
+% etats sout_resur(1->nsout+nresur) : sortie resurchauffeurs R_I, R_II,...R_nsout
 % etat 8  : sortie pompe apres condenseur   (entrée resurchauffeur R0)
 % etat 9  : sortie resurchauffeur R0        
-% etats 91->90+n_sout+nresur : sortie principale resurchauffeurs R_I,
+% etats sout_princ(1->n_sout+nresur) : sortie principale resurchauffeurs R_I,
 % R_II,...R_nsout (etats 9_I, 9_II...)
 
 
@@ -138,7 +138,7 @@ end
 if isfield(options,'reheat')           
     data.reheat = options.reheat;    
 else
-    data.reheat = 2;  % [Ã©C] 
+    data.reheat = 1;  % [Ã©C] 
 end
 %   -options.T_max     [Â°C] : Maximum steam temperature
 if isfield(options,'T_max')           
@@ -276,7 +276,8 @@ end
     data.result(7).p  = XSteam('psat_T',data.result(7).T);
     data.result(7).h  = XSteam('hL_T',data.result(7).T);
     data.result(7).s  = XSteam('sL_T',data.result(7).T);
-    data.result(7).x  = 0; %etat liquide sature
+    data.result(7).x  = titre_corr(XSteam('x_ph',data.result(7).p,data.result(7).h),data.result(7).h,data.result(7).p);
+    %VERIFIER QUE BIEN TITRE NUL -> liquide sature
     data.result(7).v  = XSteam('vL_p',data.result(7).p);
     data.result(7).ex = exergy(data.result(7).h, data.h_ref, data.result(7).s, data.s_ref, data.T0);
  
@@ -302,17 +303,17 @@ if data.reheat>0
      data.result(4).ex = exergy(data.result(4).h, data.h_ref, data.result(4).s, data.s_ref, data.T0);
 end
 
-
-    %% IP Turbine ----> !!!!!!!!! PAS OK
-    data.result(32).p = data.result(311).p/data.TurbIP_comp;
-    s_32_is = data.result(311).s;
-    h_32_is = XSteam('h_ps', data.result(32).p, s_32_is);
-    data.result(32).h  = data.result(311).h + data.eta_SiT(2)*(h_32_is-data.result(311).h);
-    data.result(32).T  = XSteam('T_ph', data.result(32).p, data.result(32).h);
-    data.result(32).x  = XSteam('x_ph', data.result(32).p, data.result(32).h);
-    data.result(32).s  = XSteam('s_ph', data.result(32).p, data.result(32).h);
-    data.result(32).v  = XSteam('v_ph',data.result(32).p,data.result(32).h);
-    data.result(32).ex = exergy(data.result(32).h, data.h_ref, data.result(32).s, data.s_ref, data.T0);
+% 
+%     %% IP Turbine ----> !!!!!!!!! PAS OK
+%     data.result(32).p = data.result(311).p/data.TurbIP_comp;
+%     s_32_is = data.result(311).s;
+%     h_32_is = XSteam('h_ps', data.result(32).p, s_32_is);
+%     data.result(32).h  = data.result(311).h + data.eta_SiT(2)*(h_32_is-data.result(311).h);
+%     data.result(32).T  = XSteam('T_ph', data.result(32).p, data.result(32).h);
+%     data.result(32).x  = XSteam('x_ph', data.result(32).p, data.result(32).h);
+%     data.result(32).s  = XSteam('s_ph', data.result(32).p, data.result(32).h);
+%     data.result(32).v  = XSteam('v_ph',data.result(32).p,data.result(32).h);
+%     data.result(32).ex = exergy(data.result(32).h, data.h_ref, data.result(32).s, data.s_ref, data.T0);
 
 %% LP Turbine : SORTIE ----> OK
 % etat isentropique : hyp : temperature fin de detente idem condenseur
@@ -323,68 +324,94 @@ end
 % etat reel
     data.result(6).h  = data.result(5).h + data.eta_SiT(3)*(h_6_is-data.result(5).h);
     data.result(6).T  = XSteam('T_ph',data.result(6).p,data.result(6).h);
-    data.result(6).x  = titre_corr(XSteam('x_ph', data.result(6).p, data.result(6).h),data.result(6).h,data.result(60).p);
+    data.result(6).x  = titre_corr(XSteam('x_ph', data.result(6).p, data.result(6).h),data.result(6).h,data.result(6).p);
     data.result(6).s  = XSteam('s_ph', data.result(6).p, data.result(6).h);
     data.result(6).v  = XSteam('v_ph',data.result(6).p,data.result(6).h);
     data.result(6).ex = exergy(data.result(6).h, data.h_ref, data.result(6).s, data.s_ref, data.T0);
     
-%% Soutirages
+%% Soutirages - etats soutire des turbines
+data.Sout_turbine = zeros(data.nsout,5); % p,T,h,s,x
 if data.reheat>0    
-    delta_h_sout = (data.result(50).h-data.result(60).h)/(data.nsout+1+data.reheat);
-data.Sout_Table = zeros(data.nsout+4,5);
-for i=1:data.nsout
-    data.result(60+i).h = data.result(50).h-delta_h_sout*i;
-    h_6i_is             = data.result(50).h - (data.result(50).h-data.result(60+i).h)/data.eta_SiT(3);
-    s_6i_is             = data.result(50).s;
-    data.result(60+i).p = XSteam('p_hs',h_6i_is,s_6i_is); %idem que p_6i_is
-    data.result(60+i).T = XSteam('T_ph',data.result(60+i).p,data.result(60+i).h);
-    data.result(60+i).s = XSteam('s_ph',data.result(60+i).p,data.result(60+i).h);
-    data.result(60+i).x = titre_corr(XSteam('x_ph',data.result(60+i).p,data.result(60+i).h),data.result(60+i).h,data.result(60+i).p);
+    delta_h_sout = (data.result(5).h-data.result(6).h)/(data.nsout+1+data.reheat);
+end
+for i=1:data.nsout 
+    data.Sout_turbine(i,3) = data.result(5).h-delta_h_sout*i;
+    h_4i_is                = data.result(5).h - (data.result(50).h-data.Sout_turbine(i,3))/data.eta_SiT(3);
+    s_4i_is                = data.result(5).s;
+    data.Sout_turbine(i,1) = XSteam('p_hs',h_4i_is,s_4i_is); %idem que p_6i_is
+    data.Sout_turbine(i,2) = XSteam('T_ph',data.Sout_turbine(i,1),data.Sout_turbine(i,3));
+    data.Sout_turbine(i,4) = XSteam('s_ph',data.Sout_turbine(i,1),data.Sout_turbine(i,3));
+    data.Sout_turbine(i,5) = titre_corr(XSteam('x_ph',data.Sout_turbine(i,1),data.Sout_turbine(i,3)),data.Sout_turbine(i,3),data.Sout_turbine(i,1));
+    
+    if i==data.nsout && data.reheat>0 % dernier soutirage = etat avant resurchauffe
+        data.Sout_turbine(i,1) = data.result(4).p;
+        data.Sout_turbine(i,2) = data.result(4).T;
+        data.Sout_turbine(i,3) = data.result(4).h;
+        data.Sout_turbine(i,4) = data.result(4).s;
+        data.Sout_turbine(i,5) = data.result(4).x;
+    end
 end
 
 % Etat vapeur sature lors du soutirage (pour plot)
-data.nsout_sat = zeros(data.nsout,4);
+data.nsout_sat = zeros(data.nsout,5);
 for i=1:data.nsout
-    data.nsout_sat(i,1) = data.result(60+i).p;
-    data.nsout_sat(i,2) = XSteam('Tsat_p',data.result(60+i).p);
-    data.nsout_sat(i,3) = XSteam('hV_p',data.result(60+i).p);
-    data.nsout_sat(i,4) = XSteam('sV_p',data.result(60+i).p);
-    data.nsout_sat(i,5) = titre_corr(XSteam('x_ph',data.result(60+i).p,data.result(60+i).h),data.result(60+i).h,data.result(60+i).p);
+    data.nsout_sat(i,1) = data.Sout_turbine(i,1);
+    data.nsout_sat(i,2) = XSteam('Tsat_p',data.nsout_sat(i,1));
+    data.nsout_sat(i,3) = XSteam('hV_p',data.nsout_sat(i,1));
+    data.nsout_sat(i,4) = XSteam('sV_p',data.nsout_sat(i,1));
+    data.nsout_sat(i,5) = titre_corr(XSteam('x_ph',data.nsout_sat(i,1),data.nsout_sat(i,3)),data.nsout_sat(i,3),data.nsout_sat(i,1));
 end
-    
-%% SORTIE RECHAUFFEURS R
+
+ 
+%% SORTIE RECHAUFFEURS R_I, R_II,...R_nsout
 % amene le fluide chaud de maniere isobare jusque etat de liquide sature
+% liquide sature a la pression de soutirage
+data.Sout_resur = zeros(data.nsout,5); % p,T,h,s,x 
 for i=1:data.nsout
-    data.result(70+i).p = data.result(60+i).p;
-    data.result(70+i).T = XSteam('Tsat_p',data.result(70+i).p);
-    data.result(70+i).h = XSteam('hL_p',data.result(70+i).p);
-    data.result(70+i).s = XSteam('sL_p',data.result(70+i).p);
-    data.result(70+i).x = titre_corr(XSteam('x_ph',data.result(70+i).p,data.result(70+i).h),data.result(70+i).h,data.result(70+i).p);
+    data.Sout_resur(i,1) = data.Sout_turbine(i,1); %isobare
+    data.Sout_resur(i,2) = XSteam('Tsat_p',data.Sout_resur(i,1));
+    data.Sout_resur(i,3) = XSteam('hL_p',data.Sout_resur(i,1));
+    data.Sout_resur(i,4) = XSteam('sL_p',data.Sout_resur(i,1));
+    data.Sout_resur(i,5) = titre_corr(XSteam('x_ph',data.Sout_resur(i,1),data.Sout_resur(i,3)),data.Sout_resur(i,3),data.Sout_resur(i,1));
 end
 
-%% SORTIE RECHAUFFEUR R0
-data.result(80).p = 5;% COMMENT SAVOIR?
+%% SORTIE POMPE d'extraction Pe, (ENTREE R0) ---> OK
+data.result(8).p = 10; % = p_Pe A FIXER AU PREALABLE :
+% imposer Pe telle que la pression en 9_nsout (ou avant le degazeur) soit suffisamment élevée pour
+% qu'a la température de 9_nsout on soit toujours a l'état liquide et ne
+% pas avoir de vapeur (donc prendre Pe> Psat(T_9_nsout)
+h_8_is           = data.result(7).h + data.v_eau*(data.result(8).p-data.result(7).p)*(10^5)/(10^3);
+data.result(8).h = data.result(7).h - data.eta_SiC*(data.result(7).h-h_8_is);
+data.result(8).T = data.result(7).T + ((data.result(8).h-data.result(7).h)-0.09*(data.result(8).p-data.result(7).p))/4.18;
+data.result(8).s = XSteam('s_pT',data.result(8).p,data.result(8).T);
+data.result(8).x =  titre_corr(XSteam('x_ph', data.result(8).p, data.result(8).h),data.result(8).h,data.result(8).p);
+data.result(8).v  = XSteam('v_ph',data.result(8).p,data.result(8).h);
+%VERIFIER QUE BIEN UN TITRE INEXISTANT    
 
-
-
-
-
-
-
+%% SORTIE principale ECHANGEURS 
+% echangeurs non parfaits : tpinch
+data.Sout_princ = zeros(data.nsout,5); % p,T,h,s,x 
+for i=1:data.nsout
+    data.Sout_princ(i,1) = data.result(8).p;
+    data.Sout_princ(i,2) = data.Sout_resur(i,2) - data.TpinchEx;
+    data.Sout_princ(i,3) = XSteam('h_pT',data.Sout_princ(i,1),data.Sout_princ(i,2));
+    data.Sout_princ(i,4) = XSteam('s_pT',data.Sout_princ(i,1),data.Sout_princ(i,2));
+    data.Sout_princ(i,5) = titre_corr(XSteam('x_ph',data.Sout_princ(i,1),data.Sout_princ(i,3)),data.Sout_princ(i,3),data.Sout_princ(i,1));
+end
 
 %% Steam Generator
 
 % Etat 2
-    data.result(20).p = data.result(4).p;
-    h20_s = data.result(1).h + data.v_eau*((data.result(20).p-data.result(1).p)*10^5); %delta_h = w_m car isentropique adiabatique, q=0, w_f=0)
-    data.result(20).h = data.result(1).h - data.eta_SiC*(data.result(1).h-h20_s);
-    data.result(20).T = data.result(4).T ; %difference de temperature negligeable, decommenter ligne suivante pour le prouver...
+    data.result(2).p = data.result(4).p;
+    h20_s = data.result(1).h + data.v_eau*((data.result(2).p-data.result(1).p)*10^5); %delta_h = w_m car isentropique adiabatique, q=0, w_f=0)
+    data.result(2).h = data.result(1).h - data.eta_SiC*(data.result(1).h-h2_s);
+    data.result(2).T = data.result(4).T ; %difference de temperature negligeable, decommenter ligne suivante pour le prouver...
                         %...+(1/1000*10e5/10e3-0.006*(data.result(20).p-data.result(1).p))/4.18;
                         %%pour etre plus precis
-    data.result(20).s = XSteam('s_ph',data.result(20).p,data.result(20).h); %OLD mais a changer..
-    data.result(20).v = XSteam('v_pT',data.result(20).p,data.result(20).T);
-    data.result(20).x = 0/0;
-    data.result(20).ex = exergy(data.result(20).h, data.h_ref,data.result(20).s,data.s_ref,data.T0);
+    data.result(2).s = XSteam('s_ph',data.result(2).p,data.result(2).h); %OLD mais a changer..
+    data.result(2).v = XSteam('v_pT',data.result(2).p,data.result(2).T);
+    data.result(2).x = 0/0;
+    data.result(2).ex = exergy(data.result(2).h, data.h_ref,data.result(2).s,data.s_ref,data.T0);
     
 
 % Etat 2'
@@ -481,7 +508,7 @@ data.result(80).p = 5;% COMMENT SAVOIR?
 % end
    
 %% Titre XSteam (correction)
-function x_corr = titre_corr(x_current,h_current,p)
+function [x_corr] = titre_corr(x_current,h_current,p)
     if x_current == 0 && h_current<XSteam('hL_p',p)
         x_corr = nan; 
     elseif x_current == 1 && h_current>XSteam('hV_p',p)
@@ -490,6 +517,8 @@ function x_corr = titre_corr(x_current,h_current,p)
         x_corr = x_current;
     end    
 end
+
+
  
 %% Display
     if display == true
