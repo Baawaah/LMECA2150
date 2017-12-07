@@ -102,7 +102,7 @@ end
 if isfield(options,'T_0')
     T_0 = options.T_0;
 else
-    T_0 = 288.15; %[K]
+    T_0 = 15; %[C]
 end
 %   -options.T_ext    [K]  : External temperature
 if isfield(options,'T_ext')
@@ -179,12 +179,18 @@ T_pinch = 10;
 Pump_comp = [250 13];
 %Turb_comp = [10 6];
 Cond_loss = 0.1;
+
+h0_273 = XSteam('h_pT',1,T_0);
+s0_273 = XSteam('s_pT',1,T_0);
+
 % p T h s v x
 table(3,1) = phig; %[bar] 
 table(3,2) = min( T_STMax,GT_DAT(1,4)-T_pinch); %[C]
 table(3,3) = XSteam('h_pT',table(3,1),table(3,2));
 table(3,4) = XSteam('s_pT',table(3,1),table(3,2));
 table(3,5) = XSteam('v_pT',table(3,1),table(3,2));
+table(3,6) = table(3,3)-h0_273 - (T_0+273.15)*(table(3,4)-s0_273); 
+
 
 %% HP Turbine
 table(4,1) = 5.8;
@@ -193,6 +199,7 @@ table(4,3) = eta_SiT(1)*h4s +  ( 1-eta_SiT(1) ) * table(3,3);
 table(4,2) = XSteam('T_ph',table(4,1),table(4,3));
 table(4,4) = XSteam('s_ph',table(4,1),table(4,3));
 table(4,5) = XSteam('v_ph',table(4,1),table(4,3));
+table(4,6) = table(4,3)-h0_273 - (T_0+273.15)*(table(4,4)-s0_273); 
 WmT_HP = table(4,3)-table(3,3); 
 %% LP Turbine
 table(5,2) = T_river+T_pinch+3;
@@ -201,6 +208,7 @@ table(5,6) = x5;
 table(5,3) = XSteam('h_px',table(5,1),table(5,6));
 table(5,4) = XSteam('s_ph',table(5,1),table(5,3));
 table(5,5) = XSteam('v_ph',table(5,1),table(5,3));
+table(5,6) = table(5,3)-h0_273 - (T_0+273.15)*(table(5,4)-s0_273); 
 WmT_LP = table(5,3)-table(4,3);
 %% Condensor
 table(1,1) = table(5,1)* (1-Cond_loss);
@@ -208,6 +216,7 @@ table(1,2) = T_river+T_pinch;
 table(1,3) = XSteam('h_pT',table(1,1),table(1,2));
 table(1,4) = XSteam('s_pT',table(1,1),table(1,2));
 table(1,5) = XSteam('v_pT',table(1,2),table(1,2));
+table(1,6) = table(1,3)-h0_273 - (T_0+273.15)*(table(1,4)-s0_273); 
 
 %% Pump
 
@@ -217,6 +226,7 @@ table(2,3) = 1/eta_SiC * h2s + (1-1/eta_SiC)*table(1,3);
 table(2,2) = XSteam('T_ph',table(2,1),table(2,3));
 table(2,4) = XSteam('s_ph',table(2,1),table(2,3));
 table(2,5) = XSteam('v_ph',table(2,1),table(2,3));
+table(2,6) = table(2,3)-h0_273 - (T_0+273.15)*(table(2,4)-s0_273); 
 WmC = table(2,3) - table(1,3)
 
 %% Mass flow
@@ -227,7 +237,7 @@ mdot_w_HP = k_hp*mdot_w; % First Guess
 mdot_w_LP = (1-k_hp)*mdot_w;
 %% CHIMNEY
 %  BLOC STATE
-%  Tgas Hgas p T h s v x
+%  Tgas Hgas p T h s e
 %   INIT
 %   SUP  HP
 %   EVAP HP
@@ -246,6 +256,7 @@ table_chim(1,3) = table(3,1);
 table_chim(1,4) = table(3,2);
 table_chim(1,5) = table(3,3);
 table_chim(1,6) = table(3,4);
+
 % IN
 table_chim(2,3) = phig;
 table_chim(2,4) = XSteam('Tsat_p',table_chim(2,3));
@@ -335,10 +346,17 @@ ETA(2)= GT_ETA(1);
 %CC Toten
 Qech = mdot_g*GT_DAT(3,4) - GT_MASSFLOW(1)* GT_DAT(3,1);
 epsilon_ech = Qech/(GT_COMBUSTION.LHV * GT_MASSFLOW(2));
-
 ETA(3)= ETA(1) + ETA(2) - ETA(1)*ETA(2) - epsilon_ech*ETA(2);
-mdot_g*(table_chim(1,2)-table_chim(6,2))
-mdot_w*(table(3,3)-table(5,3))
+% ST Cyclex
+ETA(4) = P_ST/( (k_hp*mdot_w)*(table(3,6)-table(2,6)) + ((1-k_hp)*mdot_w)*(table(4,6)-table(2,6)));
+% GT Cyclex
+ETA(5) = GT_ETA(3);
+% ETA TOTEX
+ETA(6) = (P_e+P_e_g)/(GT_MASSFLOW(2)*GT_COMBUSTION.e_c);
+% ETA GEN
+% ETA(7) = ( (k_hp*mdot_w)*(table(3,3)-table(2,3)) + ((1-k_hp)*mdot_w)*(table(4,3)-table(2,3)) )/(GT_MASSFLOW(2)*GT_COMBUSTION.LHV) 
+% ETA GEX
+ETA(8) = 
 %% MASSFLOW
 % MASSFLOW is a vector containing : 
 %   -massflow(1) [kg/s]: massflow of steam at 3 (shortcut high pressure)
@@ -398,13 +416,13 @@ if display == 1
     hold off;
     title('T-S');
     
-    format short;
-    disp('    p[bar]     T[C]      h[MJ]     s[J/K]        v      x[KJ]');
-    disp([table(:,1) table(:,2) (table(:,3)/10^3) (table(:,4)) table(:,5) ]);
+    format short g;
+    disp('       p[bar]         T[C]         h[MJ]     s[KJ/C]            v        e[KJ]');
+    disp([table(:,1) table(:,2) (table(:,3)/10^3) (table(:,4)) table(:,5) table(:,6) ]);
     
-    format short;
-    disp('Tgas[C]       hgas       p[bar]     T[C]      h[MJ]     s[J/K]        v      x[KJ]');
-    disp([table_chim(:,1) table_chim(:,2) table_chim(:,3) table_chim(:,4) table_chim(:,5)/10^3  ]);
+%     format short;
+%     disp('Tgas[C]       hgas       p[bar]     T[C]      h[MJ]     s[J/K]        v      x[KJ]');
+%     disp([table_chim(:,1) table_chim(:,2) table_chim(:,3) table_chim(:,4) table_chim(:,5)/10^3  ]);
     
     disp('  WmC[KJ]    WmT[KJ]    Wm[KJ]    mdot_g    mdot_w    mdot_w_HP  ');
     disp([WmT_HP WmT_LP  Wm mdot_g mdot_w mdot_w_HP]);

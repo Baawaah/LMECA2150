@@ -72,7 +72,7 @@ if nargin<3
     if nargin<2
         options = struct();
         if nargin<1
-            P_e = 50e6; % [W] Puissance énergétique de l'installation
+            P_e = 150e6; % [W] Puissance énergétique de l'installation
         end
     end
 end
@@ -157,7 +157,7 @@ ma1    = 34.39*( (x+y/4) / (3*x+y/4) );
 
 MmCH4 = 16.04;
 %HHV = 55.50*10^3; %[KJ]
-LHV = 50.00*10^3; %[KJ]
+LHV = 50.00*10^3; %[KJ/KG]
 %H_c_298 = -74.87;
 % Cp of the Fuel
 % http://webbook.nist.gov/cgi/cbook.cgi?ID=C74828&Mask=1
@@ -313,27 +313,34 @@ DAT = [TEMP'; PRES'; HENT';ENTR';EXER'];
 %% Display
 if display == 1
     % Plot T-S
+    gamma_g = gamma_g_fun(data.T3);
+    %curve1 = @(S) exp( (gamma_g)/( gamma_g-1) * (S) * 1/R_g  ) +data.table(2,2)
+    curve1 = @(S) exp( (data.table(3,4)-S*10^3  )/Cp_g_fun(data.T3) ) + data.table(2,2); 
     figure;
-    subplot(2,2,1);
     hold on;
     for i = 1 : length(data.table(:,1))
-        plot(data.table(i,4)/10^3,data.table(i,2),'b*');
+        plot(data.table(i,4)/10^3,data.table(i,2),'b^');
     end
+    %XC1  = linspace(0,500,100);
+    %XC1Y = curve1(XC1);
+    %plot(XC1/10^3,XC1Y)
+    fplot(curve1,[0, 1])
+    axis([0,2,0,inf])
     hold off;
     title('T-S');
-    % Plot P-v
-    subplot(2,2,2);
-    hold on;
-    for i = 1 : length(data.table(:,1))
-        plot(data.table(i,5),data.table(i,1),'b*');
-    end
-    title('P-v');
-    hold off;
+    
+%     figure;
+%     hold on;
+%     for i = 1 : length(data.table(:,1))
+%         plot(data.table(i,4),data.table(i,3),'b^');
+%     end
+%     title('h-s');
+%     hold off;
 
     %%
-    format short;
-    disp('    p[bar]     T[K]      h[MJ]     s[J/K]        v      e[KJ]');
-    disp([data.table(:,1)/10^5 data.table(:,2) data.table(:,3)/10^3 data.table(:,4) data.table(:,5) data.table(:,6)/10^3]);
+    format short g;
+    disp('    p[bar]     T[K]      h[MJ]     s[KJ/K]        v      e[KJ]');
+    disp([data.table(:,1)/10^5 data.table(:,2) data.table(:,3)/10^3 data.table(:,4)/10^3 data.table(:,5) data.table(:,6)/10^3]);
     disp('  WmC[KJ]   WmT[KJ]   Wm[KJ]    mdot_g     mdot_c   mdot_a');
     disp([WmC/10^3 WmT/10^3 Wm/10^3 mdot_g mdot_c mdot_a]);
     disp('eta_cyclen eta_toten eta_cyclex eta_totex eta_rotex eta_combex eta_mec');
