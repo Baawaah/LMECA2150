@@ -146,7 +146,7 @@ else
     plow = 5.8;
 end
 if isfield(options,'phig')
-    phig = options.plow;
+    phig = options.phig;
 else
     phig = 78;
 end
@@ -193,7 +193,7 @@ table(3,6) = table(3,3)-h0_273 - (T_0+273.15)*(table(3,4)-s0_273);
 
 
 %% HP Turbine
-table(4,1) = 5.8;
+table(4,1) = plow;
     h4s = XSteam('h_ps',table(4,1),table(3,4));
 table(4,3) = eta_SiT(1)*h4s +  ( 1-eta_SiT(1) ) * table(3,3); 
 table(4,2) = XSteam('T_ph',table(4,1),table(4,3));
@@ -356,7 +356,7 @@ ETA(6) = (P_e+P_e_g)/(GT_MASSFLOW(2)*GT_COMBUSTION.e_c);
 % ETA GEN
 % ETA(7) = ( (k_hp*mdot_w)*(table(3,3)-table(2,3)) + ((1-k_hp)*mdot_w)*(table(4,3)-table(2,3)) )/(GT_MASSFLOW(2)*GT_COMBUSTION.LHV) 
 % ETA GEX
-ETA(8) = 
+%ETA(8) = 
 %% MASSFLOW
 % MASSFLOW is a vector containing : 
 %   -massflow(1) [kg/s]: massflow of steam at 3 (shortcut high pressure)

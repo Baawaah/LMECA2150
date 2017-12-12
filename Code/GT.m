@@ -296,7 +296,10 @@ DATEN(2) = abs(WmT_opt)-abs(WmT);
 %   -datex(2) : perte_rotex [W]
 %   -datex(3) : perte_combex [W]
 %   -datex(4) : perte_echex  [W]
-DATEX = 0;
+DATEX(1) = 0;
+DATEX(2) = (data.table(2,6)) * MASSFLOW(1) - (data.table(4,6)-data.table(3,6)) * MASSFLOW(3);
+DATEX(3) = (data.table(3,6)-data.table(2,6)) * MASSFLOW(2);
+DATEX(4) = 0;
 %% DATA OVERALL
 % DAT is a matrix containing :
 % dat = {T_1       , T_2       , T_3       , T_4; [°C]
@@ -315,7 +318,10 @@ if display == 1
     % Plot T-S
     gamma_g = gamma_g_fun(data.T3);
     %curve1 = @(S) exp( (gamma_g)/( gamma_g-1) * (S) * 1/R_g  ) +data.table(2,2)
-    curve1 = @(S) exp( (data.table(3,4)-S*10^3  )/Cp_g_fun(data.T3) ) + data.table(2,2); 
+    curve1 = @(S) exp( ( S*10^3 - data.table(2,4)  )/((1-data.eta_PiC)*Cp_g32) ) * data.table(2,2); 
+    curve2 = @(S) exp( ( S*10^3 - data.table(2,4)  )/Cp_g32 ) * data.table(2,2);
+    curve3 = @(S) exp( -( S*10^3 - data.table(3,4)  )/((1-data.eta_PiT)*Cp_g_fun(data.table(4,2))) ) * data.table(3,2);
+    curve4 = @(S) exp( ( S*10^3 - data.table(4,4)  )/Cp_g32 ) * data.table(4,2);
     figure;
     hold on;
     for i = 1 : length(data.table(:,1))
@@ -324,10 +330,30 @@ if display == 1
     %XC1  = linspace(0,500,100);
     %XC1Y = curve1(XC1);
     %plot(XC1/10^3,XC1Y)
-    fplot(curve1,[0, 1])
-    axis([0,2,0,inf])
+    fplot(curve1,[data.table(1,4)/10^3,data.table(2,4)/10^3])
+    fplot(curve2,[data.table(2,4)/10^3,data.table(3,4)/10^3])
+    fplot(curve3,[data.table(3,4)/10^3,data.table(4,4)/10^3])
+    fplot(curve4,[data.table(4,4)/10^3,data.table(1,4)/10^3])
+    %axis([0,1.5,0,inf])
     hold off;
-    title('T-S');
+    grid on;
+    grid minor;
+    title('Gas Turbine T-S');
+    xlabel('Entropy s[kJ/kgK]');
+    ylabel('Temperature T [K]');
+    
+    figure;
+    sum_energ = abs(diff(data.table(:,3)))
+    label_en = {'Compressor','Combustion Chamber','Turbine'}
+    pie(sum_energ,label_en)
+    
+    figure;
+    sum_exerg = abs(diff(data.table(:,6)))
+    sum_exerg(1) = sum_exerg(1) * MASSFLOW(1)
+    sum_exerg(2) = sum_exerg(2) * MASSFLOW(3)
+    sum_exerg(3) = sum_exerg(2) * MASSFLOW(3)
+    label_ex = {'Compressor','Combustion Chamber','Turbine',}
+    pie(sum_energ,label_en)
     
 %     figure;
 %     hold on;
