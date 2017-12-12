@@ -277,12 +277,12 @@ ETA(6) = (mdot_g*data.table(3,6)-mdot_a*data.table(2,6))/(mdot_c*e_c);
 COMBUSTION.LHV      = LHV;
 COMBUSTION.e_c      = e_c;
 COMBUSTION.lambda   = lambda;
-COMBUSTION.Cp_g     = Cp_g_fun(data.T3);
+COMBUSTION.Cp_g     = Cp_g_fun(data.T3)/1e3;
 CH4_mole = mdot_c/ MmCH4; 
 COMBUSTION.fumTG(1) = mdot_a*0.2095*(lambda-1)/lambda;
 COMBUSTION.fumTG(2) = mdot_a*0.7808;
 COMBUSTION.fumTG(3) = CH4_mole*MmCO2+mdot_a*0.0004;
-COMBUSTION.fumTG(3) = CH4_mole*MmH2O*2;
+COMBUSTION.fumTG(4) = CH4_mole*MmH2O*2;
 %% DATA ENER
 % DATEN is a vector with : 
 %   -daten(1) : perte_mec [W]
@@ -309,10 +309,10 @@ DATEX(4) = 0;
 %        e_1       , e_2       , e_3       , e_4;};[kJ/kg]
 TEMP = data.table(:,2) - 273.15;
 PRES = data.table(:,1)/10^5;
-HENT = data.table(:,3)/10^3;
+ENTA = data.table(:,3)/10^3;
 ENTR = data.table(:,4)/10^3;
 EXER = data.table(:,6)/10^3;
-DAT = [TEMP'; PRES'; HENT';ENTR';EXER'];
+DAT = [TEMP'; PRES'; ENTA';ENTR';EXER'];
 %% Display
 if display == 1
     % Plot T-S

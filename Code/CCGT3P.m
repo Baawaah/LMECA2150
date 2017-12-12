@@ -1,7 +1,7 @@
-function [ETA DATEN DATEX DATST DATGT MASSFLOW COMBUSTION] = CCGT3P(P_e,options,display)
-% CCGT2P is a Combine cycle Gas Turbine with 2 pressure level
-% CCGT2P(P_e,options,display) compute the thermodynamics states for a CCGT
-% with 2 pressure level (cfr p166 english reference book) including
+function [ETA DATEN DATEX DATST DATGT MASSFLOW COMBUSTION FIG] = CCGT3P(P_e,options,display)
+% CCGT3P is a Combine cycle Gas Turbine with 2 pressure level
+% CCGT3P(P_e,options,display) compute the thermodynamics states for a CCGT
+% with 3 pressure level (cfr p166 english reference book) including
 % combustion, exchanger and cycles. This is done based on several inputs
 % (given in OPTION) and based on a given electricity production P_e.
 % It returns the main results. It can as well plots graphs if input 
@@ -9,22 +9,18 @@ function [ETA DATEN DATEX DATST DATGT MASSFLOW COMBUSTION] = CCGT3P(P_e,options,
 %
 % INPUTS (some inputs can be dependent on others => only one of these 2 can
 %         be activated)
-% P_E = electrical power output target [W]
+% P_EG = electrical power output target for gas turbine [W]
 % OPTIONS is a structure containing :
 %   -options.T0       [°C] : Reference temperature
 %   -options.T_ext    [K]  : External temperature
 %   -options.T_STmax  [°C] : maximum temperature on ST cycle
 %   -options.eta_mec  [-] : mecanic efficiency of shafts bearings
-%   -options.comb is a structure containing combustion data : 
-%       -comb.Tmax    [°C] : maximum combustion temperature
-%       -comb.lambda  [-] : air excess
-%       -comb.x       [-] : the ratio O_x/C. Example 0.05 in CH_1.2O_0.05
-%       -comb.y       [-] : the ratio H_y/C. Example 1.2 in CH_1.2O_0.05
 %   -options.pdrum   [bar]: Drum pressure
 %   -options.pmid    [bar]: Intermediary pressure level
 %   -options.x7       [-] : Vapor ratio [gaseous/liquid] (titre)
 %   -option.eta_SiC   [-] : Isotrenpic efficiency for compression
 %   -option.eta_SiT   [-] : Isotrenpic efficiency for compression
+%   -options.GT    [struct] : options for Gas turbine (see GT function) 
 % DISPLAY = 1 or 0. If 1, then the code should plot graphics. If 0, then 
 %          do not plot.
 %
@@ -42,54 +38,11 @@ function [ETA DATEN DATEX DATST DATGT MASSFLOW COMBUSTION] = CCGT3P(P_e,options,
 %   -eta(10) : eta_chemex, Chimney exergy efficiency (losses)
 %   -eta(11) : eta_transex, Heat exchanger overall exergy efficiency
 % MASSFLOW is a vector containing : 
-%   -massflow(1) [kg/s]: massflow of steam at 3 (shortcut high pressure)
-%   -massflow(2) [kg/s]: massflow of steam at 4 (HP)
-%   -massflow(3) [kg/s]: massflow of steam at 5 (all steam flow)
+%   -massflow(1) [kg/s]: water massflow at high pressure turbine inlet
+%   -massflow(2) [kg/s]: water massflow at medium pressure turbine inlet
+%   -massflow(3) [kg/s]: water massflow at low pressure turbine inlet
 %   -massflow(4) [kg/s]: air massflow at gas turbine inlet 
 %   -massflow(5) [kg/s]: combustible massflow
-% DATEN is a vector with : 
-%   -daten(1) : perte_gen  [W]
-%   -daten(2) : perte_mec  [W]
-%   -daten(3) : perte_cond [W]
-% DATEX is a vector with :
-%   -datex(1) : perte_mec    [W]
-%   -datex(2) : perte_totex  [W]
-%   -datex(3) : perte_rotex  [W]
-%   -datex(4) : perte_combex [W]
-%   -datex(5) : perte_condex [W]
-%   -datex(6) : perte_chemex [W]
-%   -datex(7) : perte_transex[W]
-% DATST is a matrix containing :
-% datST = {T_1       , T_2       , ...       , T_7;  [°C]
-%        p_1       , p_2       , ...       , p_7;  [bar]
-%        h_1       , h_2       , ...       , h_7;  [kJ/kg]
-%        s_1       , s_2       , ...       , s_7;  [kJ/kg/K]
-%        e_1       , e_2       , ...       , e_7;  [kJ/kg]
-%        x_1       , x_2       , ...       , x_7;};[-]
-% DATGT is a matrix containing :
-% datGT = {T_1g     , T_2g       , ...       , T_5g;  [°C]
-%        p_1g       , p_2g       , ...       , p_5g;  [bar]
-%        h_1g       , h_2g       , ...       , h_5g;  [kJ/kg]
-%        s_1g       , s_2g       , ...       , s_5g;  [kJ/kg/K]
-%        e_1g       , e_2g       , ...       , e_5g;  [kJ/kg]
-%        x_1g       , x_2g       , ...       , x_5g;};[-]
-% 
-% COMBUSTION is a structure with :
-%   -combustion.LHV    : the Lower Heat Value of the fuel [kJ/kg]
-%   -combustion.e_c    : the combustible exergie         [kJ/kg]
-%   -combustion.lambda : the air excess                   [-]
-%   -combustion.Cp_g   : heat capacity of exhaust gas     [kJ/kg/K]
-%   -combustion.fumTG  : is a vector of the exhaust gas composition :
-%       -fumTG(1) = m_O2f  : massflow of O2 in exhaust gas [kg/s]
-%       -fumTG(1) = m_N2f  : massflow of N2 in exhaust gas [kg/s]
-%       -fumTG(1) = m_CO2f : massflow of CO2 in exhaust gas [kg/s]
-%       -fumTG(1) = m_H2Of : massflow of H2O in exhaust gas [kg/s] 
-
-
-
-
-
-% Example of how to handle with options structure
 
 % Example of how to handle with options structure
 if nargin<3
@@ -263,26 +216,72 @@ mdot_w_HP = k_hp*mdot_w; % First Guess
 mdot_w_IP = k_ip*mdot_w;
 mdot_w_LP = (1-k_hp-k_ip)*mdot_w;
 
+%% COMBUSTION
+% MASSFLOW is a vector containing : 
+%   -massflow(1) [kg/s]: massflow of steam at 3 (shortcut high pressure)
+%   -massflow(2) [kg/s]: massflow of steam at 6 (IP)
+%   -massflow(3) [kg/s]: massflow of steam at 7 (all steam flow)
+%   -massflow(4) [kg/s]: air massflow at gas turbine inlet 
+%   -massflow(5) [kg/s]: combustible massflow
+MASSFLOW(1) = mdot_w_HP;
+MASSFLOW(2) = mdot_w_IP;
+MASSFLOW(3) = mdot_w_LP;
+MASSFLOW(4) = GT_MASSFLOW(1);
+MASSFLOW(5) = GT_MASSFLOW(2);
 
+% COMBUSTION is a structure with :
+%   -combustion.LHV    : the Lower Heat Value of the fuel [kJ/kg]
+%   -combustion.e_c    : the combustible exergie         [kJ/kg]
+%   -combustion.lambda : the air excess                   [-]
+%   -combustion.Cp_g   : heat capacity of exhaust gas     [kJ/kg/K]
+%   -combustion.fumTG  : is a vector of the exhaust gas composition :
+%       -fumTG(1) = m_O2f  : massflow of O2 in exhaust gas [kg/s]
+%       -fumTG(1) = m_N2f  : massflow of N2 in exhaust gas [kg/s]
+%       -fumTG(1) = m_CO2f : massflow of CO2 in exhaust gas [kg/s]
+%       -fumTG(1) = m_H2Of : massflow of H2O in exhaust gas [kg/s]
+COMBUSTION.LHV = GT_COMBUSTION.LHV;
+COMBUSTION.e_c = GT_COMBUSTION.e_c;
+COMBUSTION.lambda = GT_COMBUSTION.lambda;
+COMBUSTION.Cp_g = GT_COMBUSTION.Cp_g;
+COMBUSTION.fumTG(1) = GT_COMBUSTION.fumTG(1); 
+COMBUSTION.fumTG(2) = GT_COMBUSTION.fumTG(2);
+COMBUSTION.fumTG(3) = GT_COMBUSTION.fumTG(3); 
+COMBUSTION.fumTG(4) = GT_COMBUSTION.fumTG(4); 
 %% DISPLAY
-if display == 1
-    figure;
+if display == 1, visibility = 'on'; , else visibility = 'off'; , end
+%%
+    FIG(1) = figure('visible',visibility);
     hold on;
+     T=linspace(0,375,1000);  
+     for i= 1 : length(T)
+          S1(i)=XSteam('sL_T',T(i));
+          S2(i)=XSteam('sV_T',T(i));
+     end   
+     S=[S1,S2];
+     T=[T,T];
+    plot(S,T);
     for i = 1 : length(table(:,1))
-        plot(table(i,4),table(i,2),'r^');
+        plot(table(i,4),table(i,2),'b^');
+        text(table(i,4)+0.1,table(i,2)+0.1,sprintf('%d',i));
+        if i <= length(table(:,1))-1, plot([table(i,4) table(i+1,4)], [table(i,2) table(i+1,2)]), end
     end
+    plot([table(length(table(:,1)),4) table(1,4)], [table(length(table(:,1)),2) table(1,2)])
+    grid on;
+    grid minor;
     hold off;
-    title('T-S');
-    
-    format short g;
-    disp('       p[bar]         T[C]         h[MJ]     s[KJ/C]            v        e[KJ]');
-    disp([table(:,1) table(:,2) (table(:,3)/10^3) (table(:,4)) table(:,5) table(:,6) ]);
-    
-%     format short;
-%     disp('Tgas[C]       hgas       p[bar]     T[C]      h[MJ]     s[J/K]        v      x[KJ]');
-%     disp([table_chim(:,1) table_chim(:,2) table_chim(:,3) table_chim(:,4) table_chim(:,5)/10^3  ]);
-    
-    disp('  WmC[KJ]    WmT[KJ]    Wm[KJ]    mdot_g    mdot_w    mdot_w_HP  ');
-    disp([WmT_HP WmT_LP  Wm mdot_g mdot_w mdot_w_HP]);
-end
+    title('CCGT2P T-S Diagram ');
+    xlabel('Entropy [kJ/C°]')
+    ylabel('Temperature [C°]')
+%%    
+%     format short g;
+%     disp('       p[bar]         T[C]         h[MJ]     s[KJ/C]            v        e[KJ]');
+%     disp([table(:,1) table(:,2) (table(:,3)/10^3) (table(:,4)) table(:,5) table(:,6) ]);
+%     
+% %     format short;
+% %     disp('Tgas[C]       hgas       p[bar]     T[C]      h[MJ]     s[J/K]        v      x[KJ]');
+% %     disp([table_chim(:,1) table_chim(:,2) table_chim(:,3) table_chim(:,4) table_chim(:,5)/10^3  ]);
+%     
+%     disp('  WmC[KJ]    WmT[KJ]    Wm[KJ]    mdot_g    mdot_w    mdot_w_HP  ');
+%     disp([WmT_HP WmT_LP  Wm mdot_g mdot_w mdot_w_HP]);
+
 end
