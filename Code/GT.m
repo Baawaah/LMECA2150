@@ -1,4 +1,4 @@
-function [ETA,DATEN,DATEX,DAT,MASSFLOW,COMBUSTION] = GT(P_e,options,display)
+function [ETA DATEN DATEX DAT MASSFLOW COMBUSTION FIG] = GT(P_e,options,display)
 % GT Gas turbine modelisation
 % GT(P_e,options,display) compute the thermodynamics states for a Gas
 % turbine based on several inputs (given in OPTION) and based on a given 
@@ -12,7 +12,7 @@ function [ETA,DATEN,DATEX,DAT,MASSFLOW,COMBUSTION] = GT(P_e,options,display)
 %   -options.k_mec [-] : Shaft losses 
 %   -options.T_0   [K] : Reference temperature
 %   -options.T_ext [K] : External temperature
-%   -options.r     [-] : Comperession ratio
+%   -options.r     [-] : Comperssion ratio
 %   -options.k_cc  [-] : Coefficient of pressure losses due to combustion
 %                        chamber
 %   -options.T_3   [K] : Temperature after combustion (before turbine)
@@ -20,11 +20,6 @@ function [ETA,DATEN,DATEX,DAT,MASSFLOW,COMBUSTION] = GT(P_e,options,display)
 %                        polytropique interne) for compression
 %   -option.eta_PiT[-] : Intern polytropic efficiency (Rendement
 %                        polytropique interne) for expansion
-%   -options.comb is a structure containing combustion data : 
-%       -comb.Tmax    [°C] : maximum combustion temperature
-%       -comb.lambda  [-] : air excess
-%       -comb.x       [-] : the ratio O_x/C. Example 0.05 in CH_1.2O_0.05
-%       -comb.y       [-] : the ratio H_y/C. Example 1.2 in CH_1.2O_0.05
 %DISPLAY = 1 or 0. If 1, then the code should plot graphics. If 0, then the
 %          do not plot.
 %
@@ -75,6 +70,7 @@ if isfield(options,'k_cc'),   data.k_cc = options.k_cc;       else data.k_cc    
 if isfield(options,'T3'),     data.T3 = options.T3;           else data.T3      = 1050+273.15; end % -options.T_3   [K] : Temperature after combustion (before turbine)
 if isfield(options,'eta_PiC'),data.eta_PiC = options.eta_PiC; else data.eta_PiC = 0.90;        end % -option.eta_PiC[-] : Intern polytropic efficiency (Rendement polytropique interne) for compression
 if isfield(options,'eta_PiT'),data.eta_PiT = options.eta_PiT; else data.eta_PiT = 0.90;        end % -option.eta_PiT[-] : Intern polytropic efficiency (Rendement polytropique interne) for expansion
+
 %% INITIALISATION
 %% AIR
 % For an Air : 79% N2 et 21% O2 
@@ -215,7 +211,7 @@ ETA(6) = (mdot_g*data.table(3,6)-mdot_a*data.table(2,6))/(mdot_c*e_c);
 %       -fumTG(1) = m_CO2f : massflow of CO2 in exhaust gas [kg/s]
 %       -fumTG(1) = m_H2Of : massflow of H2O in exhaust gas [kg/s] 
 COMBUSTION.LHV      = LHV;
-COMBUSTION.e_c      = e_c;
+COMBUSTION.e_c      = e_c/10^3;
 COMBUSTION.lambda   = lambda;
 COMBUSTION.Cp_g     = Cp_g_fun(data.T3)/1e3;
 CH4_mole = mdot_c/ MmCH4; 
@@ -238,7 +234,7 @@ DATEN(2) = abs(WmT_opt)-abs(WmT);
 %   -datex(4) : perte_echex  [W]
 DATEX(1) = 0;
 DATEX(2) = (data.table(2,6)) * MASSFLOW(1) - (data.table(4,6)-data.table(3,6)) * MASSFLOW(3);
-DATEX(3) = (data.table(3,6)-data.table(2,6)) * MASSFLOW(2);
+DATEX(3) = (data.table(3,6)-data.table(2,6)) * MASSFLOW(1);
 DATEX(4) = 0;
 %% DATA OVERALL
 % DAT is a matrix containing :

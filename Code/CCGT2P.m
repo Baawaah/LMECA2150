@@ -43,7 +43,7 @@ function [ETA MASSFLOW FIG] = CCGT2P(P_e,options,display)
 %   -massflow(3) [kg/s]: air massflow at gas turbine inlet 
 %   -massflow(4) [kg/s]: combustible massflow
 %% INPUT HANDLER
-if nargin<3, display = 1; if nargin<2, options = struct(); if nargin<1, P_e = 160e6; end, end, end
+if nargin<3, display = 1; if nargin<2, options = struct(); if nargin<1, P_e = 140e6; end, end, end
 
 if isfield(options,'T_0')       , T_0 = options.T_0;          else T_0 = 15;         end %   -options.T0       [°C] : Reference temperature
 if isfield(options,'T_ext')     , T_ext = options.T_ext;      else T_ext = 26;       end %   -options.T_ext    [K]  : Condenseur cold outlet temperature
@@ -56,10 +56,7 @@ if isfield(options,'x5')        , x5 = options.x5;            else x5 = 1;      
 if isfield(options,'eta_SiC')   , eta_SiC = options.eta_SiC;  else eta_SiC = 0.9;    end %   -option.eta_SiC    [-] : Isotrenpic efficiency for compression
 if isfield(options,'eta_SiT')   , eta_SiT = options.eta_SiT;  else eta_SiT(1) = 0.9;
                                                                    eta_SiT(2) = 0.9; end %   -option.eta_SiT   [-]  : Isotrenpic efficiency for compression
-if isfield(options,'GT')        , optionsGT = options.GT;     else optionsGT.comb.Tmax = 1150;
-                                                                   optionsGT.comb.x = 1; 
-                                                                   optionsGT.comb.y = 4;
-                                                                   optionsGT.comb.lambda = 3; end 
+if isfield(options,'GT')        , optionsGT = options.GT;     else optionsGT.T3 = 1100+273.15;end 
                                                                                          %   -options.GT    [struct] : options for Gas turbine (see GT function)    
 %% GAS TURBINE COMPUTATION
 % REQUIRE GT.m
@@ -67,19 +64,21 @@ if isfield(options,'GT')        , optionsGT = options.GT;     else optionsGT.com
 % turbine based on several inputs (given in OPTION) and based on a given 
 % electricity production P_E_G. It returns the main results. It can as well
 % plots graphs if input argument DISPLAY = true (<=> DISPLAY=1)
-P_E_G = 150*10^6;
-[GT_ETA GT_DATEN GT_DATEX GT_DAT GT_MASSFLOW GT_COMBUSTION] = GT(P_E_G,optionsGT,0);
+P_E_G = 225*10^6;
+[GT_ETA,GT_DATEN,GT_DATEX,GT_DAT,GT_MASSFLOW,GT_COMBUSTION] = GT(P_E_G,optionsGT,0);
 %% INITIALISATION OF VALUE
 % Cycle Table Formalisme
 % [ 1 2 3 4 5 6 7 ]
 % [ p T h s v e x ]
 TpinchChim = 10;               % Heat exchanger of the exit GT
-T_pinch_EVA_LP = 139; 
+T_pinch_EVA_HP = 5;
+T_pinch_EVA_LP = 70; 
+T_pinch_ECO_HP_SUP_LP = 120;
 Pump_comp = [250 13];          % Compression Ratio
 Cond_loss = 0.1;               % Condensor Pressure Loss
 h0_273 = XSteam('h_pT',1,T_0); % Enthalpy0 at 273
 s0_273 = XSteam('s_pT',1,T_0); % Entropy0 at 273
-k_hp = 0.5;                    % Ratio of HP LP water fraction
+k_hp = 0.85;                    % Ratio of HP LP water fraction
 
 %% STATE AFTER HEATING
 table(3,1) = phig; %[bar] 
@@ -121,7 +120,7 @@ table(2,2) = XSteam('T_ph',table(2,1),table(2,3));
 table(2,4) = XSteam('s_ph',table(2,1),table(2,3));
 table(2,5) = XSteam('v_ph',table(2,1),table(2,3));
 table(2,6) = table(2,3)-h0_273 - (T_0+273.15)*(table(2,4)-s0_273); 
-WmC = table(2,3) - table(1,3)
+WmC = table(2,3) - table(1,3);
 %% COMPUTATION OF THE MASSFLOW
 Wm = k_hp*abs(WmT_HP)+abs(WmT_LP) - WmC;
 mdot_w = P_e/(Wm*10^3 /(eta_mec));
@@ -143,6 +142,7 @@ table(7,2) = XSteam('T_ph',table(7,1),table(7,3));
 table(7,4) = XSteam('s_pt',table(7,1),table(7,2));
 table(7,5) = XSteam('v_pt',table(7,1),table(7,2));
 table(7,6) = table(7,3)-h0_273 - (T_0+273.15)*(table(7,4)-s0_273);
+WmC2 = abs(table(7,3) - XSteam('HL_p',plow));
 % 8 - EXIT LP BALLON VAPOR
 table(8,1) = plow;
 table(8,2) = XSteam('Tsat_p',plow);
@@ -158,7 +158,7 @@ table(9,4) = XSteam('sL_p',table(9,1));
 table(9,5) = XSteam('vL_p',table(9,1));
 table(9,6) = table(9,3)-h0_273 - (T_0+273.15)*(table(9,4)-s0_273);
 % 10 - EXIT HP BALLON VAPOR
-table(10,1) = phig
+table(10,1) = phig;
 table(10,2) = XSteam('Tsat_p',phig);
 table(10,3) = XSteam('HV_p',table(10,1));
 table(10,4) = XSteam('sV_p',table(10,1));
@@ -167,10 +167,9 @@ table(10,6) = table(10,3)-h0_273 - (T_0+273.15)*(table(10,4)-s0_273);
 %% EXHAUST GT GAS
 Cp_g   = GT_COMBUSTION.Cp_g;
 mdot_g = GT_MASSFLOW(3);
-T_pinch_EVA_HP = 5;
-T_pinch_EVA_LP = 10; 
+e_c    = GT_COMBUSTION.e_c;
 % ENTRY OF THE CHIMNEY
-table(11,1) = GT_DAT(2,4);
+table(11,1) = GT_DAT(2,4); % [bar]
 table(11,2) = GT_DAT(1,4);
 table(11,3) = GT_DAT(3,4);
 table(11,4) = GT_DAT(4,4);
@@ -178,7 +177,7 @@ table(11,6) = GT_DAT(5,4);
 % AFTER SUP HP
 table(12,1) = table(11,1);
 table(12,3) = table(11,3) - mdot_w_HP/mdot_g  * (table(3,3)-table(10,3));
-table(12,2) = table(11,2) + (table(12,3)-table(11,3))/Cp_g;
+table(12,2) = table(11,2) + ((table(12,3)-table(11,3))/Cp_g);
 table(12,4) = Cp_g*log((table(12,2)+273.15)/(table(11,2)+273.15)) + table(11,4);
 table(12,6) = table(12,3) - (T_0+273.15)*table(12,4); 
 % AFTER EVA HP
@@ -189,19 +188,19 @@ table(13,4) = Cp_g*log((table(13,2)+273.15)/(table(12,2)+273.15)) + table(12,4);
 table(13,6) = table(13,3) - (T_0+273.15)*table(13,4); 
 % AFTER ECO HP SUP LP
 table(14,1) = table(13,1);
-table(14,2) = (table(7,2)+table(8,2))/2 + T_pinch_EVA_HP;
+table(14,2) = (table(7,2)+table(8,2))/2 + T_pinch_ECO_HP_SUP_LP;
 table(14,3) = table(13,3) + Cp_g*(table(14,2)-table(13,2));
 table(14,4) = Cp_g*log((table(14,2)+273.15)/(table(13,2)+273.15)) + table(13,4);
 table(14,6) = table(14,3) - (T_0+273.15)*table(14,4); 
 % AFTER EVA LP
 table(15,1) = table(14,1);
-table(15,2) = table(6,2) + T_pinch_EVA_HP;
+table(15,2) = XSteam('Tsat_p',plow) + T_pinch_EVA_LP;
 table(15,3) = table(14,3) + Cp_g*(table(15,2)-table(14,2));
 table(15,4) = Cp_g*log((table(15,2)+273.15)/(table(14,2)+273.15)) + table(14,4);
 table(15,6) = table(15,3) - (T_0+273.15)*table(15,4); 
 % AFTER ECO LP - EXIT CHIMNEY 
 table(16,1) = table(15,1);
-table(16,3) = table(15,3) - mdot_w/mdot_g*(table(6,2)-table(2,2));
+table(16,3) = table(15,3) - mdot_w/mdot_g*(table(6,3)-table(2,3));
 table(16,2) = table(15,2) + (table(16,3)-table(15,3))/Cp_g;
 table(16,4) = Cp_g*log((table(16,2)+273.15)/(table(15,2)+273.15)) + table(15,4);
 table(16,6) = table(16,3) - (T_0+273.15)*table(16,4); 
@@ -215,37 +214,34 @@ mdot_v_LP = (table(14,3)-table(15,3))/(h_EVA_LP) * mdot_g;
 %OUPUTS : 
 % ETA is a vector with :
 %   -eta(1)  : eta_STcyclen, cycle energy efficiency
-%   -eta(2)  : eta_GTcyclen, cycle energy efficiency
-%   -eta(3)  : eta_toten, overall energy efficiency
-%   -eta(4)  : eta_STcyclex, cycle exegy efficiency
-%   -eta(5)  : eta_GTcyclex, cycle exegy efficiency
-%   -eta(6)  : eta_totex, overall exergie efficiency
-%   -eta(7)  : eta_gen, Steam generator energy efficiency
-%   -eta(8)  : eta_gex, Steam generator exergy efficiency
-%   -eta(9)  : eta_combex, Combustion exergy efficiency
-%   -eta(10) : eta_chemex, Chimney exergy efficiency (losses)
-%   -eta(11) : eta_transex, Heat exchanger overall exergy efficiency
-
-%ST Cyclen
-%P_chm = mdot_g * (table_chim(1,2)-table_chim(6,2));
 P_ST  = mdot_w*Wm;
-ETA(1)= P_ST/(GT_COMBUSTION.LHV * GT_MASSFLOW(2));%P_chm;
-%GT Cyclen
+ETA(1)= P_ST/(GT_COMBUSTION.LHV * GT_MASSFLOW(2));
+%   -eta(2)  : eta_GTcyclen, cycle energy efficiency
 ETA(2)= GT_ETA(1);
-%CC Toten
+%   -eta(3)  : eta_toten, overall energy efficiency
 Qech = mdot_g*GT_DAT(3,4) - GT_MASSFLOW(1)* GT_DAT(3,1);
 epsilon_ech = Qech/(GT_COMBUSTION.LHV * GT_MASSFLOW(2));
 ETA(3)= ETA(1) + ETA(2) - ETA(1)*ETA(2) - epsilon_ech*ETA(2);
-% ST Cyclex
+%   -eta(4)  : eta_STcyclex, cycle exegy efficiency
 ETA(4) = P_ST/( (k_hp*mdot_w)*(table(3,6)-table(2,6)) + ((1-k_hp)*mdot_w)*(table(4,6)-table(2,6)));
-% GT Cyclex
+%   -eta(5)  : eta_GTcyclex, cycle exegy efficiency
 ETA(5) = GT_ETA(3);
-% ETA TOTEX
-ETA(6) = (P_e+P_E_G)/(GT_MASSFLOW(2)*GT_COMBUSTION.e_c);
-% ETA GEN
-% ETA(7) = ( (k_hp*mdot_w)*(table(3,3)-table(2,3)) + ((1-k_hp)*mdot_w)*(table(4,3)-table(2,3)) )/(GT_MASSFLOW(2)*GT_COMBUSTION.LHV) 
-% ETA GEX
-%ETA(8) = 
+%   -eta(6)  : eta_totex, overall exergie efficiency
+ETA(6) = (P_e+P_E_G)/1e3/(GT_MASSFLOW(2)*GT_COMBUSTION.e_c);
+%   -eta(7)  : eta_gen, Steam generator energy efficiency
+ETA(7) = ( mdot_w_HP*(table(3,3)-table(2,3)) + mdot_w_LP*(table(4,3)-table(2,3)) - mdot_w_HP*WmC2 )/(GT_MASSFLOW(2)*GT_COMBUSTION.LHV);
+%   -eta(8)  : eta_gex, Steam generator exergy efficiency
+ETA(8) = ( mdot_w_HP*(table(3,6)-table(2,6)) + mdot_w_LP*(table(4,6)-table(2,6)))/(GT_MASSFLOW(2)*e_c);
+%   -eta(9)  : eta_combex, Combustion exergy efficiency
+ETA(9) = GT_ETA(6);
+%   -eta(10) : eta_chemex, Chimney exergy efficiency (losses)
+ETA(10) = (GT_DAT(5,4)-table(16,6))/(GT_DAT(5,4));
+%   -eta(11) : eta_transex, Heat exchanger overall exergy efficiency
+ETA(11) = (GT_MASSFLOW(3)*(GT_DAT(5,4)-table(16,6)))/( mdot_w_HP*(table(3,6)-table(2,6)) + mdot_w_LP*(table(4,6)-table(2,6)));
+
+%P_chm = mdot_g * (table_chim(1,2)-table_chim(6,2));
+%P_chm;
+
 %% OUTPUT MASSFLOW
 % MASSFLOW is a vector containing : 
 MASSFLOW(1) = mdot_w_HP;      %   -massflow(1) [kg/s]: water massflow at high pressure turbine inlet
@@ -254,7 +250,7 @@ MASSFLOW(3) = mdot_w ;        %   -massflow(3) [kg/s]: air massflow at gas turbi
 MASSFLOW(4) = GT_MASSFLOW(2); %   -massflow(4) [kg/s]: combustible massflow
 
 %% DISPLAY
-if display == 1, visibility = 'on'; , else visibility = 'off'; , end
+if display == 1, visibility = 'on';  else visibility = 'off';  end
 %% FIG 1 - CYCLE T-S DIAGRAM
     FIG(1) = figure('visible',visibility);
     hold on;
@@ -292,36 +288,38 @@ if display == 1, visibility = 'on'; , else visibility = 'off'; , end
     %visibility = 'off';
 %%  FIG 2 - WATER REPARTITION  
     FIG(2)= figure('visible',visibility);
-    F2labels = {'T-WMF';'H- WMF';'LP-WMF';'HP-V-WMF';'LP-V-WMF'};
-    bar([1:5],[mdot_w mdot_w_HP mdot_w_LP mdot_v_HP mdot_v_LP ]);
+    F2labels = {'T-WMF';'H-WMF';'LP-WMF';'HP-V-WMF';'LP-V-WMF'};
+    bar(1:5,[mdot_w mdot_w_HP mdot_w_LP mdot_v_HP mdot_v_LP ]);
     set(gca,'xticklabel',F2labels)
+    title('Water Massflow Repartion')
     colormap parula
 %%  FIG 3 - ENERGETIC POWER
     FIG(3)= figure('visible',visibility);
-    LOSS_MECA = (P_e+P_E_G)/1e3*(1-eta_mec);
-    LOSS_COND = abs((table(5,3)-table(1,3)))*mdot_w;
-    LOSS_CHIM = abs((table(11,3)-table(16,3)))*GT_MASSFLOW(3);
-    ENPO = [P_e/1e3 P_E_G/1e3 LOSS_MECA LOSS_COND LOSS_CHIM];
-    F3labels = {'Effective Power ST';'Effective Power GT';'Mecanic Losses';'Condensor Losses';'Chimnee Losses'};
+    LOSS_MECA   = (P_e+P_E_G)/1e3*(1-eta_mec);
+    LOSS_COND   = abs((table(5,3)-table(1,3)))*mdot_w;
+    LOSS_CHIM   = abs((table(11,3)-table(16,3)))*GT_MASSFLOW(3);
+    LOSS_MECAGT = GT_DATEN(1)/1e3;
+    LOSS_ECHAGT = GT_DATEN(2)/1e3;
+    ENPO = [P_e/1e3 P_E_G/1e3 LOSS_MECA LOSS_MECAGT LOSS_COND LOSS_CHIM  LOSS_ECHAGT];
+    F3labels = {'Effective Power ST';'Effective Power GT';'Mecanic Losses';'Mecanic Losses GT';'Condensor Losses';'Chimney Losses';'Exchanger Losses GT'};
     pie(ENPO,F3labels);
+    title('Primary Energy Power')
     colormap summer;
 %%  FIG 4 - EXERGY FLOW
     FIG(3)= figure('visible',visibility);
-    LOSS_COMB = GT_DATEX(3);
-    EXFL = [P_e/1e3 P_E_G/1e3 LOSS_MECA LOSS_COMB];
-    pie(EXFL);
+    LOSS_EX_COMB = GT_DATEX(3)/1e3;
+    LOSS_EX_CHEM = table(16,6)*GT_MASSFLOW(3);
+    LOSS_EX_ROTO = (mdot_w * WmC + mdot_w_HP * WmC2 - mdot_w*(table(2,6)-table(1,6))+ mdot_w_HP*(table(3,6)-table(4,6))+ mdot_w*(table(4,6)-table(5,6)));
+    LOSS_EX_TRAN = GT_MASSFLOW(3)*GT_DAT(5,4)-GT_MASSFLOW(1)*GT_DAT(5,1);
+    EXFL = [P_e/1e3 P_E_G/1e3 LOSS_MECA LOSS_EX_COMB LOSS_EX_CHEM LOSS_EX_TRAN LOSS_EX_ROTO];
+    F4labels = {'Effective Power ST';'Effective Power GT';'Mecanic Losses';'Combustion Losses';'Chimney Losses';'Transfert Losses';'Rotoric Losses'};
+    pie(EXFL,F4labels);
+    title('Primary Exergy Flux')
     colormap winter;
     
     
     format short g;
-    disp('        STATE       p[bar]         T[C]         h[MJ]     s[KJ/C]            v        e[KJ]');
-    disp([linspace(1,length(table(:,1)),length(table(:,1)))' table(:,1) table(:,2) (table(:,3)/10^3) (table(:,4)) table(:,5) table(:,6) ]);
-    %     format short g;
-%     disp('Tgas[C]       hgas       p[bar]     T[C]      h[MJ]     s[J/K]        v      x[KJ]');
-%     disp([table_chim(:,1) table_chim(:,2) table_chim(:,3) table_chim(:,4) table_chim(:,5)/10^3  ]);
-
-    
-    disp('  WmC[KJ]    WmT[KJ]    Wm[KJ]    mdot_g    mdot_w    mdot_w_HP  ');
-    disp([WmT_HP WmT_LP  Wm mdot_g  mdot_w_HP]);
+    disp('        STATE       p[bar]         T[C]         h[KJ]     s[KJ/C]            v        e[KJ]');
+    disp([linspace(1,length(table(:,1)),length(table(:,1)))' table(:,1) table(:,2) (table(:,3)) (table(:,4)) table(:,5) table(:,6) ]);
 
 end
