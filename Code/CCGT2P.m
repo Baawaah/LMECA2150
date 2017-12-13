@@ -271,13 +271,25 @@ if display == 1, visibility = 'on';  else visibility = 'off';  end
     %plot([table(length(table(:,1)),4) table(1,4)], [table(length(table(:,1)),2) table(1,2)])
     plot([table(5,4) table(1,4)], [table(5,2) table(1,2)])
     % CHIMNEE
-    plot([table(2,4) table(6,4)], [table(2,2) table(6,2)],'r--')
+    plot([table(2,4) table(6,4)], [table(2,2) table(6,2)],'b--')
     plot([table(6,4) table(7,4)], [table(6,2) table(7,2)],'g--')
     plot([table(6,4) table(8,4)], [table(6,2) table(8,2)],'g--')
     plot([table(8,4) table(4,4)], [table(8,2) table(4,2)],'g--')
     plot([table(7,4) table(9,4)], [table(7,2) table(9,2)],'r--')
     plot([table(9,4) table(10,4)], [table(9,2) table(10,2)],'r--')
     plot([table(10,4) table(3,4)], [table(10,2) table(3,2)],'r--')
+    
+    plot([table(11,4) table(12,4)], [table(11,2) table(12,2)],'k--')
+    plot([table(12,4) table(13,4)], [table(12,2) table(13,2)],'k--')
+    plot([table(13,4) table(14,4)], [table(13,2) table(14,2)],'k--')
+    plot([table(14,4) table(15,4)], [table(14,2) table(15,2)],'k--')
+    plot([table(15,4) table(16,4)], [table(15,2) table(16,2)],'k--')
+    
+    h = zeros(3, 1);
+    h(1) = plot(NaN,NaN,'--r');
+    h(2) = plot(NaN,NaN,'--g');
+    h(3) = plot(NaN,NaN,'--k');
+    legend(h,'HP Evolution Part','LP Part Evolution','GT Gas Evolution');
     
     grid on;
     grid minor;

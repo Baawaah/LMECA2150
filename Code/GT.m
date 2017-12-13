@@ -279,17 +279,19 @@ if display == 1
     ylabel('Temperature T [K]');
     
     figure;
-    sum_energ = abs(diff(data.table(:,3)))
-    label_en = {'Compressor','Combustion Chamber','Turbine'}
-    pie(sum_energ,label_en)
+    LOSS_EN_MECA = Pfmec/1e3;
+    LOSS_EN_CHEM = data.table(4,3)/1e3*MASSFLOW(3);
+    label_en = {'Effective Power','Mechanical Losses','Chimney Losses'}
+    pie([P_e/1e3 LOSS_EN_MECA LOSS_EN_CHEM],label_en)
+    colormap summer;
     
     figure;
-    sum_exerg = abs(diff(data.table(:,6)))
-    sum_exerg(1) = sum_exerg(1) * MASSFLOW(1)
-    sum_exerg(2) = sum_exerg(2) * MASSFLOW(3)
-    sum_exerg(3) = sum_exerg(2) * MASSFLOW(3)
-    label_ex = {'Compressor','Combustion Chamber','Turbine',}
-    pie(sum_energ,label_en)
+    LOSS_EX_TRAN = data.table(4,6)/1e3*MASSFLOW(3) - data.table(1,6)/1e3*MASSFLOW(1);
+    LOSS_EX_CHIM = data.table(4,6)/1e3*MASSFLOW(3);
+    LOSS_EX_COMB = MASSFLOW(3)*data.table(3,6)/1e3-MASSFLOW(1)*data.table(2,6)/1e3;
+    label_ex = {'Effective Power','Mechanical Losses','Transfert Losses','Chimney Losses','Combustion Losses'}
+    pie([P_e/1e3 LOSS_EN_MECA LOSS_EX_TRAN LOSS_EX_CHIM LOSS_EX_COMB],label_ex)
+    colormap summer;
     
 %     figure;
 %     hold on;
