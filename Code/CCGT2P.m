@@ -79,7 +79,7 @@ Pump_comp = [250 13];          % Compression Ratio
 Cond_loss = 0.1;               % Condensor Pressure Loss
 h0_273 = XSteam('h_pT',1,T_0); % Enthalpy0 at 273
 s0_273 = XSteam('s_pT',1,T_0); % Entropy0 at 273
-k_hp = 0.9;                    % Ratio of HP LP water fraction
+k_hp = 0.5;                    % Ratio of HP LP water fraction
 
 %% STATE AFTER HEATING
 table(3,1) = phig; %[bar] 
@@ -127,62 +127,89 @@ Wm = k_hp*abs(WmT_HP)+abs(WmT_LP) - WmC;
 mdot_w = P_e/(Wm*10^3 /(eta_mec));
 mdot_w_HP = k_hp*mdot_w; 
 mdot_w_LP = (1-k_hp)*mdot_w;
-%% CHIMNEY BLOC COMPUTATION
-%  BLOC STATE
-%  Tgas Hgas p T h s e
-%   INIT
-%   SUP  HP
-%   EVAP HP
-%   ECO  HP + 4 SUP LP
-%   EVP  LP
-%   ECO  LP
-%% SUPERHEATER
-% OUT
-mdot_g = GT_MASSFLOW(3);
+%% Chimney Part
+% 6 - EXIT ECONOMIZER
+table(6,1) = table(2,1);
+table(6,2) = XSteam('Tsat_p',plow);
+table(6,3) = XSteam('H_pt',table(6,1),table(6,2));
+table(6,4) = XSteam('s_pt',table(6,1),table(6,2));
+table(6,5) = XSteam('v_pt',table(6,1),table(6,2));
+table(6,6) = table(6,3)-h0_273 - (T_0+273.15)*(table(6,4)-s0_273);
+% 7 - EXIT LP BALLON LIQUID AND PUMP
+table(7,1) = phig;
+    h7s = XSteam('h_ps',table(7,1),table(6,4));
+table(7,3) = 1/eta_SiC * h7s + (1-1/eta_SiC)*table(6,3);
+table(7,2) = XSteam('T_ph',table(7,1),table(7,3));
+table(7,4) = XSteam('s_pt',table(7,1),table(7,2));
+table(7,5) = XSteam('v_pt',table(7,1),table(7,2));
+table(7,6) = table(7,3)-h0_273 - (T_0+273.15)*(table(7,4)-s0_273);
+% 8 - EXIT LP BALLON VAPOR
+table(8,1) = plow;
+table(8,2) = XSteam('Tsat_p',plow);
+table(8,3) = XSteam('HV_p',table(8,1));
+table(8,4) = XSteam('sV_p',table(8,1));
+table(8,5) = XSteam('vV_p',table(8,1));
+table(8,6) = table(8,3)-h0_273 - (T_0+273.15)*(table(8,4)-s0_273);
+% 9 - EXIT ECO HP
+table(9,1) = phig;
+table(9,2) = XSteam('Tsat_p',phig);
+table(9,3) = XSteam('HL_p',table(9,1));
+table(9,4) = XSteam('sL_p',table(9,1));
+table(9,5) = XSteam('vL_p',table(9,1));
+table(9,6) = table(9,3)-h0_273 - (T_0+273.15)*(table(9,4)-s0_273);
+% 10 - EXIT HP BALLON VAPOR
+table(10,1) = phig
+table(10,2) = XSteam('Tsat_p',phig);
+table(10,3) = XSteam('HV_p',table(10,1));
+table(10,4) = XSteam('sV_p',table(10,1));
+table(10,5) = XSteam('vV_p',table(10,1));
+table(10,6) = table(10,3)-h0_273 - (T_0+273.15)*(table(10,4)-s0_273);
+%% EXHAUST GT GAS
 Cp_g   = GT_COMBUSTION.Cp_g;
-table_chim(1,1) = GT_DAT(1,4);
-table_chim(1,2) = GT_DAT(3,4);
-table_chim(1,3) = table(3,1);
-table_chim(1,4) = table(3,2);
-table_chim(1,5) = table(3,3);
-table_chim(1,6) = table(3,4);
-% IN
-table_chim(2,3) = phig;
-table_chim(2,4) = XSteam('Tsat_p',table_chim(2,3));
-table_chim(2,5) = XSteam('hV_p',table_chim(2,3));
-table_chim(2,2) = table_chim(1,2) - mdot_w_HP/mdot_g  * (table_chim(1,5)-table_chim(2,5));
-table_chim(2,1) = table_chim(1,1) + (table_chim(2,2)-table_chim(1,2))/Cp_g; 
-%% Evaporator HP
-% OUT
-table_chim(3,3) = phig;
-table_chim(3,4) = XSteam('Tsat_p',table_chim(3,3));
-table_chim(3,5) = XSteam('hV_p',table_chim(3,3));
-T_pinch_EVA_HP = 10; 
-h_EVA_HP = XSteam('hV_p',phig); - XSteam('hL_p',phig);
-table_chim(3,1) = table_chim(3,4) + T_pinch_EVA_HP;
-table_chim(3,2) = table_chim(2,2) + Cp_g*(table_chim(3,1) - table_chim(2,1));
-%% ECO HP SUP LP
-h_ECO_HP_OUT  =  XSteam('hL_T',XSteam('Tsat_p',phig));
-h_ECO_HP_IN   =  XSteam('hL_p',plow*Pump_comp(2));    
-h_SUP_LP_OUT  =  XSteam('hV_T',table(4,2));
-h_SUP_LP_IN   =  XSteam('hV_T',XSteam('Tsat_p',plow));
-table_chim(4,3) = plow;
-table_chim(4,4) = XSteam('T_ph',plow,h_ECO_HP_IN);
-table_chim(4,4) = XSteam('Tsat_p',plow);
-table_chim(4,2) = table_chim(3,2) - mdot_w_HP/mdot_g  * (h_ECO_HP_OUT - h_ECO_HP_IN ) - mdot_w_LP/mdot_g * (h_SUP_LP_OUT - h_SUP_LP_IN )  ;
-table_chim(4,1) = table_chim(3,1) + (table_chim(4,2)-table_chim(3,2))/Cp_g;
-%% Evaporator LP
-h_EVA_LP = XSteam('hV_p',plow) - XSteam('hL_p',plow);
-table_chim(5,1) = XSteam('Tsat_p',plow)+T_pinch_EVA_LP;
-table_chim(5,2) = table_chim(4,2) + Cp_g*(table_chim(5,1)-table_chim(4,1));
-%% Economiser LP
-h_ECO_LP_OUT = XSteam('hL_T',XSteam('Tsat_p',plow));
-h_ECO_LP_IN  = table(2,3);
-table_chim(6,2) = table_chim(5,2) - mdot_w/mdot_g  * (h_ECO_LP_OUT - h_ECO_LP_IN);
-table_chim(6,1) = table_chim(5,1) + (table_chim(6,2)-table_chim(5,2))/Cp_g;
+mdot_g = GT_MASSFLOW(3);
+T_pinch_EVA_HP = 5;
+T_pinch_EVA_LP = 10; 
+% ENTRY OF THE CHIMNEY
+table(11,1) = GT_DAT(2,4);
+table(11,2) = GT_DAT(1,4);
+table(11,3) = GT_DAT(3,4);
+table(11,4) = GT_DAT(4,4);
+table(11,6) = GT_DAT(5,4);
+% AFTER SUP HP
+table(12,1) = table(11,1);
+table(12,3) = table(11,3) - mdot_w_HP/mdot_g  * (table(3,3)-table(10,3));
+table(12,2) = table(11,2) + (table(12,3)-table(11,3))/Cp_g;
+table(12,4) = Cp_g*log((table(12,2)+273.15)/(table(11,2)+273.15)) + table(11,4);
+table(12,6) = table(12,3) - (T_0+273.15)*table(12,4); 
+% AFTER EVA HP
+table(13,1) = table(12,1);
+table(13,2) = XSteam('Tsat_p',phig) + T_pinch_EVA_HP;
+table(13,3) = table(12,3) + Cp_g*(table(13,2)-table(12,2));
+table(13,4) = Cp_g*log((table(13,2)+273.15)/(table(12,2)+273.15)) + table(12,4);
+table(13,6) = table(13,3) - (T_0+273.15)*table(13,4); 
+% AFTER ECO HP SUP LP
+table(14,1) = table(13,1);
+table(14,2) = (table(7,2)+table(8,2))/2 + T_pinch_EVA_HP;
+table(14,3) = table(13,3) + Cp_g*(table(14,2)-table(13,2));
+table(14,4) = Cp_g*log((table(14,2)+273.15)/(table(13,2)+273.15)) + table(13,4);
+table(14,6) = table(14,3) - (T_0+273.15)*table(14,4); 
+% AFTER EVA LP
+table(15,1) = table(14,1);
+table(15,2) = table(6,2) + T_pinch_EVA_HP;
+table(15,3) = table(14,3) + Cp_g*(table(15,2)-table(14,2));
+table(15,4) = Cp_g*log((table(15,2)+273.15)/(table(14,2)+273.15)) + table(14,4);
+table(15,6) = table(15,3) - (T_0+273.15)*table(15,4); 
+% AFTER ECO LP - EXIT CHIMNEY 
+table(16,1) = table(15,1);
+table(16,3) = table(15,3) - mdot_w/mdot_g*(table(6,2)-table(2,2));
+table(16,2) = table(15,2) + (table(16,3)-table(15,3))/Cp_g;
+table(16,4) = Cp_g*log((table(16,2)+273.15)/(table(15,2)+273.15)) + table(15,4);
+table(16,6) = table(16,3) - (T_0+273.15)*table(16,4); 
 %% CYCLE HP AND LP MASSFLOW
-mdot_v_HP = (table_chim(2,2)-table_chim(3,2))/(h_EVA_HP) * mdot_g;
-mdot_v_LP = (table_chim(4,2)-table_chim(5,2))/(h_EVA_LP) * mdot_g;
+h_EVA_HP = XSteam('HV_p',phig)-XSteam('HL_p',phig);
+h_EVA_LP = XSteam('HV_p',plow)-XSteam('HL_p',plow);
+mdot_v_HP = (table(12,3)-table(13,3))/(h_EVA_HP) * mdot_g;
+mdot_v_LP = (table(14,3)-table(15,3))/(h_EVA_LP) * mdot_g;
 
 %% ETA Efficiency
 %OUPUTS : 
@@ -200,9 +227,9 @@ mdot_v_LP = (table_chim(4,2)-table_chim(5,2))/(h_EVA_LP) * mdot_g;
 %   -eta(11) : eta_transex, Heat exchanger overall exergy efficiency
 
 %ST Cyclen
-P_chm = mdot_g * (table_chim(1,2)-table_chim(6,2));
+%P_chm = mdot_g * (table_chim(1,2)-table_chim(6,2));
 P_ST  = mdot_w*Wm;
-ETA(1)= P_ST/(GT_COMBUSTION.LHV * GT_MASSFLOW(2))%P_chm;
+ETA(1)= P_ST/(GT_COMBUSTION.LHV * GT_MASSFLOW(2));%P_chm;
 %GT Cyclen
 ETA(2)= GT_ETA(1);
 %CC Toten
@@ -225,49 +252,6 @@ MASSFLOW(1) = mdot_w_HP;      %   -massflow(1) [kg/s]: water massflow at high pr
 MASSFLOW(2) = mdot_w_LP;      %   -massflow(2) [kg/s]: water massflow at low pressure turbine inlet
 MASSFLOW(3) = mdot_w ;        %   -massflow(3) [kg/s]: air massflow at gas turbine inlet 
 MASSFLOW(4) = GT_MASSFLOW(2); %   -massflow(4) [kg/s]: combustible massflow
-%%
-
-% DATEN is a vector with : 
-%   -daten(1) : perte_gen  [W]
-%   -daten(2) : perte_mec  [W]
-%   -daten(3) : perte_cond [W]
-% DATEX is a vector with :
-%   -datex(1) : perte_mec    [W]
-%   -datex(2) : perte_totex  [W]
-%   -datex(3) : perte_rotex  [W]
-%   -datex(4) : perte_combex [W]
-%   -datex(5) : perte_condex [W]
-%   -datex(6) : perte_chemex [W]
-%   -datex(7) : perte_transex[W]
-% DATST is a matrix containing :
-% datST = {T_1       , T_2       , ...       , T_5;  [°C]
-%        p_1       , p_2       , ...       , p_5;  [bar]
-%        h_1       , h_2       , ...       , h_5;  [kJ/kg]
-%        s_1       , s_2       , ...       , s_5;  [kJ/kg/K]
-%        e_1       , e_2       , ...       , e_5;  [kJ/kg]
-%        x_1       , x_2       , ...       , x_5;};[-]
-% TEMPST = table(:,2);
-% PRESST = table(:,1);
-% ENTAST = table(:,3);
-% ENTRST = table(:,4);
-% EXERST = table(:,6);
-% TITRST = table(:,7);
-% DATST = [TEMPST'; PRESST'; ENTAST'; ENTRST'; EXERST'; TITRST'];
-% % DATGT is a matrix containing :
-% % datGT = {T_1g     , T_2g       , ...       , T_5g;  [°C]
-% %        p_1g       , p_2g       , ...       , p_5g;  [bar]
-% %        h_1g       , h_2g       , ...       , h_5g;  [kJ/kg]
-% %        s_1g       , s_2g       , ...       , s_5g;  [kJ/kg/K]
-% %        e_1g       , e_2g       , ...       , e_5g;  [kJ/kg]
-% %        x_1g       , x_2g       , ...       , x_5g;};[-]
-% Tg5 = table_chim(end,1);
-% hg5 = table_chim(end,2);
-% pg5 = 1;
-% sg5 = GT_COMBUSTION.Cp_g*log((Tg5+273.15)/(GT_DAT(1,4)+273.15)) + GT_DAT(4,4);
-% eg5 = hg5 - (T_0+273.15)*sg5; 
-% GT_DAT5 = [ Tg5; pg5; hg5; sg5; eg5];
-% DATGT = [GT_DAT GT_DAT5];
-
 
 %% DISPLAY
 if display == 1, visibility = 'on'; , else visibility = 'off'; , end
@@ -281,19 +265,31 @@ if display == 1, visibility = 'on'; , else visibility = 'off'; , end
      end   
      S=[S1,S2];
      T=[T,T];
-    plot(S,T);
+    plot(S,T,'b:');
     for i = 1 : length(table(:,1))
-        plot(table(i,4),table(i,2),'b^');
+        plot(table(i,4),table(i,2),'k^');
         text(table(i,4)+0.1,table(i,2)+0.1,sprintf('%d',i));
-        if i <= length(table(:,1))-1, plot([table(i,4) table(i+1,4)], [table(i,2) table(i+1,2)]), end
+        %if i <= length(table(:,1))-1, plot([table(i,4) table(i+1,4)], [table(i,2) table(i+1,2)]), end
+        if i <= 4 && i ~= 2, plot([table(i,4) table(i+1,4)], [table(i,2) table(i+1,2)],'b'), end
     end
-    plot([table(length(table(:,1)),4) table(1,4)], [table(length(table(:,1)),2) table(1,2)])
+    %plot([table(length(table(:,1)),4) table(1,4)], [table(length(table(:,1)),2) table(1,2)])
+    plot([table(5,4) table(1,4)], [table(5,2) table(1,2)])
+    % CHIMNEE
+    plot([table(2,4) table(6,4)], [table(2,2) table(6,2)],'r--')
+    plot([table(6,4) table(7,4)], [table(6,2) table(7,2)],'g--')
+    plot([table(6,4) table(8,4)], [table(6,2) table(8,2)],'g--')
+    plot([table(8,4) table(4,4)], [table(8,2) table(4,2)],'g--')
+    plot([table(7,4) table(9,4)], [table(7,2) table(9,2)],'r--')
+    plot([table(9,4) table(10,4)], [table(9,2) table(10,2)],'r--')
+    plot([table(10,4) table(3,4)], [table(10,2) table(3,2)],'r--')
+    
     grid on;
     grid minor;
     hold off;
     title('CCGT2P T-S Diagram ');
-    xlabel('Entropy [kJ/C°]')
-    ylabel('Temperature [C°]')
+    xlabel('Entropy [kJ/C°]');
+    ylabel('Temperature [C°]');
+    %visibility = 'off';
 %%  FIG 2 - WATER REPARTITION  
     FIG(2)= figure('visible',visibility);
     F2labels = {'T-WMF';'H- WMF';'LP-WMF';'HP-V-WMF';'LP-V-WMF'};
@@ -304,26 +300,26 @@ if display == 1, visibility = 'on'; , else visibility = 'off'; , end
     FIG(3)= figure('visible',visibility);
     LOSS_MECA = (P_e+P_E_G)/1e3*(1-eta_mec);
     LOSS_COND = abs((table(5,3)-table(1,3)))*mdot_w;
-    LOSS_CHIM = abs((table_chim(5,3)-table_chim(1,3)))*GT_MASSFLOW(3);
-    ENPO = [P_e/1e3 P_E_G/1e3 LOSS_MECA LOSS_COND LOSS_CHIM]
+    LOSS_CHIM = abs((table(11,3)-table(16,3)))*GT_MASSFLOW(3);
+    ENPO = [P_e/1e3 P_E_G/1e3 LOSS_MECA LOSS_COND LOSS_CHIM];
     F3labels = {'Effective Power ST';'Effective Power GT';'Mecanic Losses';'Condensor Losses';'Chimnee Losses'};
-    pie(ENPO,F3labels)
-    colormap summer
+    pie(ENPO,F3labels);
+    colormap summer;
 %%  FIG 4 - EXERGY FLOW
     FIG(3)= figure('visible',visibility);
     LOSS_COMB = GT_DATEX(3);
-    EXFL = [P_e/1e3 P_E_G/1e3 LOSS_MECA LOSS_COMB]
-    pie(EXFL)
-    colormap winter
+    EXFL = [P_e/1e3 P_E_G/1e3 LOSS_MECA LOSS_COMB];
+    pie(EXFL);
+    colormap winter;
     
     
     format short g;
-    disp('       p[bar]         T[C]         h[MJ]     s[KJ/C]            v        e[KJ]');
-    disp([table(:,1) table(:,2) (table(:,3)/10^3) (table(:,4)) table(:,5) table(:,6) ]);
-    
-    format short g;
-    disp('Tgas[C]       hgas       p[bar]     T[C]      h[MJ]     s[J/K]        v      x[KJ]');
-    disp([table_chim(:,1) table_chim(:,2) table_chim(:,3) table_chim(:,4) table_chim(:,5)/10^3  ]);
+    disp('        STATE       p[bar]         T[C]         h[MJ]     s[KJ/C]            v        e[KJ]');
+    disp([linspace(1,length(table(:,1)),length(table(:,1)))' table(:,1) table(:,2) (table(:,3)/10^3) (table(:,4)) table(:,5) table(:,6) ]);
+    %     format short g;
+%     disp('Tgas[C]       hgas       p[bar]     T[C]      h[MJ]     s[J/K]        v      x[KJ]');
+%     disp([table_chim(:,1) table_chim(:,2) table_chim(:,3) table_chim(:,4) table_chim(:,5)/10^3  ]);
+
     
     disp('  WmC[KJ]    WmT[KJ]    Wm[KJ]    mdot_g    mdot_w    mdot_w_HP  ');
     disp([WmT_HP WmT_LP  Wm mdot_g  mdot_w_HP]);

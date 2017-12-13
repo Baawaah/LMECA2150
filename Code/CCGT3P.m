@@ -1,4 +1,4 @@
-function [ETA DATEN DATEX DATST DATGT MASSFLOW COMBUSTION FIG] = CCGT3P(P_e,options,display)
+function [ETA MASSFLOW FIG] = CCGT3P(P_e,options,display)
 % CCGT3P is a Combine cycle Gas Turbine with 2 pressure level
 % CCGT3P(P_e,options,display) compute the thermodynamics states for a CCGT
 % with 3 pressure level (cfr p166 english reference book) including
@@ -43,101 +43,27 @@ function [ETA DATEN DATEX DATST DATGT MASSFLOW COMBUSTION FIG] = CCGT3P(P_e,opti
 %   -massflow(3) [kg/s]: water massflow at low pressure turbine inlet
 %   -massflow(4) [kg/s]: air massflow at gas turbine inlet 
 %   -massflow(5) [kg/s]: combustible massflow
-
-% Example of how to handle with options structure
-if nargin<3
-    display = 1;
-    if nargin<2
-        options = struct();
-        if nargin<1
-            P_e = 153.8e6; % [W] 
-        end
-    end
-end
-%   -options.T0       [°C] : Reference temperature
-if isfield(options,'T_0')
-    T_0 = options.T_0;
-else
-    T_0 = 15; %[C]
-end
-%   -options.T_ext    [K]  : External temperature
-if isfield(options,'T_ext')
-    optionsGT.T_ext = options.T_ext;
-else
-    optionsGT.T_ext = 288.15; %[K]
-end
-%   -options.T_STmax  [°C] : maximum temperature on ST cycle
-if isfield(options,'T_STMax')
-    T_STMax = options.T_STMax;
-else
-    T_STMax = 525; %[K]
-end
-%   -options.eta_mec  [-] : mecanic efficiency of shafts bearings
-if isfield(options,'eta_mec')
-    eta_mec = options.eta_mec;
-else
-    eta_mec = 0.9; %[K]
-end
-%   -options.comb is a structure containing combustion data : 
-%       -comb.Tmax    [°C] : maximum combustion temperature
-%       -comb.lambda  [-] : air excess
-%       -comb.x       [-] : the ratio O_x/C. Example 0.05 in CH_1.2O_0.05
-%       -comb.y       [-] : the ratio H_y/C. Example 1.2 in CH_1.2O_0.05
-if isfield(options,'comb')
-    optionsGT.comb.Tmax   = comb.Tmax;
-    optionsGT.comb.lambda = comb.lambda;
-    optionsGT.comb.x = comb.x;
-    optionsGT.comb.y = comb.y;    
-else
-    optionsGT.comb.Tmax = 1150;
-    optionsGT.comb.x = 1; 
-    optionsGT.comb.y = 4;
-    optionsGT.comb.lambda = 3;
-end
-%   -options.pdrum   [bar]: Drum pressure
-
-%   -options.plow    [bar]: Low pressure
-if isfield(options,'plow')
-    plow = options.plow;
-else
-    plow =3.6;
-end
-%   -options.pmid    [bar]: Intermediary pressure level
-if isfield(options,'pmid')
-    pmid = options.pmid;
-else
-    pmid =27.3;
-end
-%   -options.phig    [bar]: Intermediary pressure level
-if isfield(options,'phig')
-    phig = options.phig;
-else
-    phig = 122.8;
-end
-
-
-%   -options.x7       [-] : Vapor ratio [gaseous/liquid] (titre)
-if isfield(options,'x5')
-    x7 = options.x7;
-else
-    x7 = 1;
-end
-%   -option.eta_SiC   [-] : Isotrenpic efficiency for compression
-if isfield(options,'eta_SiC')           
-    eta_SiC = options.eta_SiC;    
-else
-    eta_SiC = 0.9;   
-end
-%   -option.eta_SiT   [-] : Isotrenpic efficiency for compression
-if isfield(options,'eta_SiT')           
-    eta_SiT = options.eta_SiT;    
-else
-    eta_SiT(1) = 0.9;
-    eta_SiT(2) = 0.9;
-end
+%% INPUT HANDLER
+if nargin<3, display = 1; if nargin<2, options = struct(); if nargin<1, P_e = 153.8e6; end, end, end
+if isfield(options,'T_0')    , T_0 = options.T_0;                else T_0 = 15;                 end %   -options.T0       [°C] : Reference temperature
+if isfield(options,'T_ext')  , optionsGT.T_ext = options.T_ext;  else optionsGT.T_ext = 288.15; end %   -options.T_ext    [K]  : External temperature
+if isfield(options,'T_STMax'), T_STMax = options.T_STMax;        else T_STMax = 525;            end %   -options.T_STmax  [°C] : maximum temperature on ST cycle
+if isfield(options,'eta_mec'), eta_mec = options.eta_mec;        else eta_mec = 0.9;            end %   -options.eta_mec  [-] : mecanic efficiency of shafts bearings
+if isfield(options,'pdrum')  , pdrum = options.pdrum;            else pdrum =3.6;               end %   -options.pdrum   [bar]: Drum pressure
+if isfield(options,'plow')   , plow = options.plow;              else plow =3.6;                end %   -options.plow    [bar]: Low pressure
+if isfield(options,'pmid')   , pmid = options.pmid;              else pmid =27.3;               end %   -options.pmid    [bar]: Intermediary pressure level
+if isfield(options,'phig')   , phig = options.phig;              else phig = 122.8;             end %   -options.phig    [bar]: Intermediary pressure level
+if isfield(options,'x7')     , x7   = option.x7;                 else x7 = 1;                   end %   -options.x7       [-] : Vapor ratio [gaseous/liquid] (titre)
+if isfield(options,'eta_SiC'), eta_SiC = options.eta_SiC;        else eta_SiC = 0.9;            end %   -option.eta_SiC   [-] : Isotrenpic efficiency for compression
+if isfield(options,'eta_SiT'), eta_SiT = options.eta_SiT;        else eta_SiT(1) = 0.9;
+                                                                      eta_SiT(2) = 0.9;         end %   -option.eta_SiT   [-] : Isotrenpic efficiency for compression
+if isfield(options,'GT')     , optionsGT = options.GT;           else optionsGT.comb.Tmax = 1150;
+                                                                      optionsGT.comb.x = 1; 
+                                                                      optionsGT.comb.y = 4;
+                                                                      optionsGT.comb.lambda = 3;end %-options.GT    [struct] : options for Gas turbine (see GT function) 
 %% GTurbine
-P_e_g = 283.7e6;
-[GT_ETA GT_DATEN GT_DATEX GT_DAT GT_MASSFLOW GT_COMBUSTION] = GT(P_e_g,optionsGT,0);
+P_E_G = 283.7e6;
+[GT_ETA GT_DATEN GT_DATEX GT_DAT GT_MASSFLOW GT_COMBUSTION] = GT(P_E_G,optionsGT,0);
 %% INITIALISATION OF A FEW VALUE
 T_pinch = 10;
 T_river = 15;
@@ -229,27 +155,9 @@ MASSFLOW(3) = mdot_w_LP;
 MASSFLOW(4) = GT_MASSFLOW(1);
 MASSFLOW(5) = GT_MASSFLOW(2);
 
-% COMBUSTION is a structure with :
-%   -combustion.LHV    : the Lower Heat Value of the fuel [kJ/kg]
-%   -combustion.e_c    : the combustible exergie         [kJ/kg]
-%   -combustion.lambda : the air excess                   [-]
-%   -combustion.Cp_g   : heat capacity of exhaust gas     [kJ/kg/K]
-%   -combustion.fumTG  : is a vector of the exhaust gas composition :
-%       -fumTG(1) = m_O2f  : massflow of O2 in exhaust gas [kg/s]
-%       -fumTG(1) = m_N2f  : massflow of N2 in exhaust gas [kg/s]
-%       -fumTG(1) = m_CO2f : massflow of CO2 in exhaust gas [kg/s]
-%       -fumTG(1) = m_H2Of : massflow of H2O in exhaust gas [kg/s]
-COMBUSTION.LHV = GT_COMBUSTION.LHV;
-COMBUSTION.e_c = GT_COMBUSTION.e_c;
-COMBUSTION.lambda = GT_COMBUSTION.lambda;
-COMBUSTION.Cp_g = GT_COMBUSTION.Cp_g;
-COMBUSTION.fumTG(1) = GT_COMBUSTION.fumTG(1); 
-COMBUSTION.fumTG(2) = GT_COMBUSTION.fumTG(2);
-COMBUSTION.fumTG(3) = GT_COMBUSTION.fumTG(3); 
-COMBUSTION.fumTG(4) = GT_COMBUSTION.fumTG(4); 
 %% DISPLAY
 if display == 1, visibility = 'on'; , else visibility = 'off'; , end
-%%
+%% FIG 1 Cycle T-S Diagram
     FIG(1) = figure('visible',visibility);
     hold on;
      T=linspace(0,375,1000);  
@@ -269,7 +177,7 @@ if display == 1, visibility = 'on'; , else visibility = 'off'; , end
     grid on;
     grid minor;
     hold off;
-    title('CCGT2P T-S Diagram ');
+    title('CCGT3P T-S Diagram ');
     xlabel('Entropy [kJ/C°]')
     ylabel('Temperature [C°]')
 %%    

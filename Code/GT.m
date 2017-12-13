@@ -65,82 +65,22 @@ function [ETA,DATEN,DATEX,DAT,MASSFLOW,COMBUSTION] = GT(P_e,options,display)
 %       -fumTG(1) = m_N2f  : massflow of N2 in exhaust gas [kg/s]
 %       -fumTG(1) = m_CO2f : massflow of CO2 in exhaust gas [kg/s]
 %       -fumTG(1) = m_H2Of : massflow of H2O in exhaust gas [kg/s] 
-
-
-if nargin<3
-    display = 1;
-    if nargin<2
-        options = struct();
-        if nargin<1
-            P_e = 150e6; % [W] Puissance énergétique de l'installation
-        end
-    end
-end
-% Example of how to handle with options structure
-if isfield(options,'T_0')
-    data.T_0 = options.T_0;
-else
-    data.T_0 = 288.15; %[K]
-end
-
-if isfield(options,'k_mec')
-    data.k_mec = options.k_mec;
-else
-    data.k_mec = 0.015; 
-end
-if isfield(options,'T_ext')
-    data.T_ext = options.T_ext;
-else
-    data.T_ext = 288.15; %[K]
-end
-if isfield(options,'r')
-    data.r = options.r;
-else
-    data.r = 10; 
-end
-if isfield(options,'k_cc')
-    data.k_cc = options.k_cc;
-else
-    data.k_cc = 0.90; 
-end
-if isfield(options,'T3')
-    data.T3 = options.T3;
-else
-    data.T3 = 1050+273.15; 
-end
-if isfield(options,'eta_PiC')
-    data.eta_PiC = options.eta_PiC;
-else
-    data.eta_PiC = 0.90; 
-end
-if isfield(options,'eta_PiT')
-    data.eta_PiT = options.eta_PiT;
-else
-    data.eta_PiT = 0.90; 
-end
-% OPTION RAJOUTER
-%   -options.comb is a structure containing combustion data : 
-%       -comb.Tmax    [�C] : maximum combustion temperature
-%       -comb.lambda  [-] : air excess
-%       -comb.x       [-] : the ratio O_x/C. Example 0.05 in CH_1.2O_0.05
-%       -comb.y       [-] : the ratio H_y/C. Example 1.2 in CH_1.2O_0.05
-if isfield(options,'comb')
-    data.T3 = options.comb.Tmax+273.15;
-    lambda  = options.comb.lambda;
-    x = options.comb.x;
-    y = options.comb.y;    
-else
-    x = 1; 
-    y = 4;
-    lambda = 3.5;
-end
-
-%% THE CODE
+% INPUT HANDLER
+if nargin<3, display = 1; if nargin<2, options = struct(); if nargin<1, P_e = 150e6; end, end, end
+if isfield(options,'T_0'),    data.T_0 = options.T_0;         else data.T_0     = 288.15;      end % -options.T_0   [K] : Reference temperature
+if isfield(options,'k_mec'),  data.k_mec = options.k_mec;     else data.k_mec   = 0.015;       end % -options.k_mec [-] : Shaft losses
+if isfield(options,'T_ext'),  data.T_ext = options.T_ext;     else data.T_ext   = 288.15;      end % -options.T_ext [K] : External temperature
+if isfield(options,'r'),      data.r = options.r;             else data.r       = 10;          end % -options.r     [-] : Comperssion ratio
+if isfield(options,'k_cc'),   data.k_cc = options.k_cc;       else data.k_cc    = 0.90;        end % -options.k_cc  [-] : Coefficient of pressure losses due to combustion chamber
+if isfield(options,'T3'),     data.T3 = options.T3;           else data.T3      = 1050+273.15; end % -options.T_3   [K] : Temperature after combustion (before turbine)
+if isfield(options,'eta_PiC'),data.eta_PiC = options.eta_PiC; else data.eta_PiC = 0.90;        end % -option.eta_PiC[-] : Intern polytropic efficiency (Rendement polytropique interne) for compression
+if isfield(options,'eta_PiT'),data.eta_PiT = options.eta_PiT; else data.eta_PiT = 0.90;        end % -option.eta_PiT[-] : Intern polytropic efficiency (Rendement polytropique interne) for expansion
 %% INITIALISATION
 %% AIR
+% For an Air : 79% N2 et 21% O2 
 MmNO2 = 28.0134;
 MmO2  = 31.9988;
-MmAr  = 39.948; %on prend le cas de Air = 79% N2 et 21% O2 ??
+MmAr  = 39.948; 
 MmCO2 = 44.0095;
 MmH2O = 18;
 R_a = 8.314472*1000/(0.7808*MmNO2 + 0.2095*MmO2 + 0.00934*MmAr + 0.0004* MmCO2);
@@ -150,11 +90,13 @@ Cv_a = (Cp_a-R_a);
 gamma_a = Cp_a/Cv_a;
 %h_a_fun = @(T) (0.0004*janaf('h','CO2',T)+0.21*janaf('h','O2',T)+0.78*janaf('h','N2',T))*10^3;
 
+
 %% FUEL
-% CxHy - CH4
-
+% Methane Fuel CxHy - CH4
+x = 1; 
+y = 4;
+lambda = 3.5;
 ma1    = 34.39*( (x+y/4) / (3*x+y/4) );
-
 MmCH4 = 16.04;
 %HHV = 55.50*10^3; %[KJ]
 LHV = 50.00*10^3; %[KJ/KG]
@@ -172,9 +114,7 @@ E_g1 =	0.678565;	%E_g2 = -26.42221;
 %H_g1 = -74.87310;	%H_g2 = -74.87310;
 Cp_c_fun = @(T) (A_g1 + B_g1*(T/1000) + C_g1*(T/1000)^2 + D_g1*(T/1000)^3 + E_g1/((T/1000)^2))/MmCH4*10^3;
 %h_c_fun = @(T) (A_g1*(T/1000) + B_g1*((T/1000)^2)/2 + C_g1*((T/1000)^3)/3 + D_g1*((T/1000)^4)/4 - E_g1/(T/1000) + F_g1 - H_g1 ); 
-
 e_c = LHV*1.041*10^3;
-
 R_c = 8.314472*1000/(MmCH4);
 %% Gas
 R_g = 1/(1+lambda*ma1) *R_c + lambda*ma1/(1+lambda*ma1) *R_a;
@@ -365,7 +305,7 @@ if display == 1
 
     %%
     format short g;
-    disp('    p[bar]     T[K]      h[MJ]     s[KJ/K]        v      e[KJ]');
+    disp('    p[bar]     T[K]      h[KJ]     s[KJ/K]        v      e[KJ]');
     disp([data.table(:,1)/10^5 data.table(:,2) data.table(:,3)/10^3 data.table(:,4)/10^3 data.table(:,5) data.table(:,6)/10^3]);
     disp('  WmC[KJ]   WmT[KJ]   Wm[KJ]    mdot_g     mdot_c   mdot_a');
     disp([WmC/10^3 WmT/10^3 Wm/10^3 mdot_g mdot_c mdot_a]);
