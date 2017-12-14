@@ -1,4 +1,4 @@
-function [ETA DATEN DATEX DAT MASSFLOW COMBUSTION FIG] = GT(P_e,options,display)
+function [ETA,DATEN,DATEX,DAT,MASSFLOW,COMBUSTION,FIG] = GT(P_e,options,display)
 % GT Gas turbine modelisation
 % GT(P_e,options,display) compute the thermodynamics states for a Gas
 % turbine based on several inputs (given in OPTION) and based on a given 
@@ -224,7 +224,7 @@ COMBUSTION.fumTG(4) = CH4_mole*MmH2O*2;
 %   -daten(1) : perte_mec [W]
 %   -daten(2) : perte_ech [W]
 DATEN(1) = Pfmec;
-DATEN(2) = abs(WmT_opt)-abs(WmT);
+DATEN(2) = (abs(WmT_opt)-abs(WmT))*mdot_g;
 
 %% DATA EXER
 % DATEX is a vector with :
@@ -232,10 +232,10 @@ DATEN(2) = abs(WmT_opt)-abs(WmT);
 %   -datex(2) : perte_rotex [W]
 %   -datex(3) : perte_combex [W]
 %   -datex(4) : perte_echex  [W]
-DATEX(1) = 0;
+DATEX(1) = Pfmec;
 DATEX(2) = (data.table(2,6)) * MASSFLOW(1) - (data.table(4,6)-data.table(3,6)) * MASSFLOW(3);
-DATEX(3) = (data.table(3,6)-data.table(2,6)) * MASSFLOW(1);
-DATEX(4) = 0;
+DATEX(3) = data.table(3,6)*MASSFLOW(3)-data.table(2,6)*MASSFLOW(1) ;
+DATEX(4) = data.table(4,6)*mdot_g;
 %% DATA OVERALL
 % DAT is a matrix containing :
 % dat = {T_1       , T_2       , T_3       , T_4; [°C]
@@ -250,7 +250,8 @@ ENTR = data.table(:,4)/10^3;
 EXER = data.table(:,6)/10^3;
 DAT = [TEMP'; PRES'; ENTA';ENTR';EXER'];
 %% Display
-if display == 1
+if display == 1, visibility = 'on'; else visibility = 'off'; end
+%% FIG 1
     % Plot T-S
     gamma_g = gamma_g_fun(data.T3);
     %curve1 = @(S) exp( (gamma_g)/( gamma_g-1) * (S) * 1/R_g  ) +data.table(2,2)
@@ -258,10 +259,11 @@ if display == 1
     curve2 = @(S) exp( ( S*10^3 - data.table(2,4)  )/Cp_g32 ) * data.table(2,2);
     curve3 = @(S) exp( -( S*10^3 - data.table(3,4)  )/((1-data.eta_PiT)*Cp_g_fun(data.table(4,2))) ) * data.table(3,2);
     curve4 = @(S) exp( ( S*10^3 - data.table(4,4)  )/Cp_g32 ) * data.table(4,2);
-    figure;
+    FIG(1) = figure('visible',visibility);
     hold on;
     for i = 1 : length(data.table(:,1))
-        plot(data.table(i,4)/10^3,data.table(i,2),'b^');
+        text(data.table(i,4)/1e3+0.01,data.table(i,2)+0.1,sprintf('%d',i));
+        plot(data.table(i,4)/1e3,data.table(i,2),'b^');
     end
     %XC1  = linspace(0,500,100);
     %XC1Y = curve1(XC1);
@@ -274,40 +276,81 @@ if display == 1
     hold off;
     grid on;
     grid minor;
-    title('Gas Turbine T-S');
+    title('Gas Turbine T-S Diagram');
     xlabel('Entropy s[kJ/kgK]');
     ylabel('Temperature T [K]');
+%% FIG 2
+    % Plot T-S
+    %curve1 = @(S) exp( (gamma_g)/( gamma_g-1) * (S) * 1/R_g  ) +data.table(2,2)
+    curve1 = @(S)  ((exp( ( S*10^3 - data.table(2,4)  )/((1-data.eta_PiC)*Cp_g32) ) * data.table(2,2))-data.table(1,2))*Cp_g_fun(data.table(2,2))/1e3; 
+    curve2 = @(S)  ((exp( ( S*10^3 - data.table(2,4)  )/Cp_g32 ) * data.table(2,2)) - data.table(1,2))*(Cp_g_fun(data.table(2,2))*0.25+Cp_g_fun(data.table(3,2))*0.75)/1e3;
+    curve3 = @(S)  (exp( -( S*10^3 - data.table(3,4)  )/((1-data.eta_PiT)*Cp_g_fun(data.table(4,2))) ) * data.table(3,2) -data.table(1,2))*(0.7*Cp_g_fun(data.table(3,2))+0.3*Cp_g_fun(data.table(4,2)))/1e3 ;
+    curve4 = @(S)  (exp( ( S*10^3 - data.table(4,4)  )/Cp_g32 ) * data.table(4,2)-data.table(1,2) )*Cp_g32/1e3 ;
+    FIG(2) = figure('visible',visibility);
+    hold on;
+    for i = 1 : length(data.table(:,1))
+        text(data.table(i,4)/1e3+0.01,data.table(i,3)/1e3+0.1,sprintf('%d',i));
+        plot(data.table(i,4)/1e3,data.table(i,3)/1e3,'k^');
+    end
+
+    fplot(curve1,[data.table(1,4)/1e3,data.table(2,4)/1e3])
+    fplot(curve2,[data.table(2,4)/1e3,data.table(3,4)/1e3])
+    fplot(curve3,[data.table(3,4)/1e3,data.table(4,4)/1e3])
+    fplot(curve4,[data.table(4,4)/1e3,data.table(1,4)/1e3])
+    %axis([0,1.5,0,inf])
+    hold off;
+    grid on;
+    grid minor;
+    title('Gas Turbine H-S Diagram');
+    xlabel('Entropy s[kJ/kgK]');
+    ylabel('Enthalpy  [kJ/kg]');    
     
-    figure;
+%% FIG 3    
+    FIG(3) = figure('visible',visibility);
     LOSS_EN_MECA = Pfmec/1e3;
     LOSS_EN_CHEM = data.table(4,3)/1e3*MASSFLOW(3);
-    label_en = {'Effective Power','Mechanical Losses','Chimney Losses'}
-    pie([P_e/1e3 LOSS_EN_MECA LOSS_EN_CHEM],label_en)
+    label_en = {'Effective Power','Mechanical Losses','Chimney Losses'};
+    pie([P_e/1e3 LOSS_EN_MECA LOSS_EN_CHEM],label_en);
+    STREN1 = sprintf('Effective Power %.1f [MW]'  ,P_e/1e6);
+    STREN2 = sprintf('Mechanical Losses %.1f [MW]',LOSS_EN_MECA/1e3);
+    STREN3 = sprintf('Chimney Losses %.1f [MW]',LOSS_EN_CHEM/1e3);
+    legend(STREN1,STREN2,STREN3,'Location','bestoutside');
     colormap summer;
-    
-    figure;
+    title('Primary Energy Power')
+%% FIG 4    
+    FIG(4)=figure('visible',visibility);
     LOSS_EX_TRAN = data.table(4,6)/1e3*MASSFLOW(3) - data.table(1,6)/1e3*MASSFLOW(1);
-    LOSS_EX_CHIM = data.table(4,6)/1e3*MASSFLOW(3);
+    LOSS_EX_CHEM = data.table(4,6)/1e3*MASSFLOW(3);
     LOSS_EX_COMB = MASSFLOW(3)*data.table(3,6)/1e3-MASSFLOW(1)*data.table(2,6)/1e3;
-    label_ex = {'Effective Power','Mechanical Losses','Transfert Losses','Chimney Losses','Combustion Losses'}
-    pie([P_e/1e3 LOSS_EN_MECA LOSS_EX_TRAN LOSS_EX_CHIM LOSS_EX_COMB],label_ex)
+    label_ex = {'Effective Power','Mechanical Losses','Transfert Losses','Chimney Losses','Combustion Losses'};
+    pie([P_e/1e3 LOSS_EN_MECA LOSS_EX_TRAN LOSS_EX_CHEM LOSS_EX_COMB],label_ex);
+    STREX1 = sprintf('Effective Power %.1f [MW]'  ,P_e/1e6);
+    STREX2 = sprintf('Mechanical Losses %.1f [MW]',LOSS_EN_MECA/1e3);
+    STREX3 = sprintf('Transfert Losses %.1f [MW]',LOSS_EX_TRAN/1e3);
+    STREX4 = sprintf('Chimney Losses %.1f [MW]',LOSS_EX_CHEM/1e3);
+    STREX5 = sprintf('Combustion Losses %.1f [MW]',LOSS_EX_COMB/1e3);
+    legend(STREX1,STREX2,STREX3,STREX4,STREX5,'Location','bestoutside');
     colormap summer;
+    title('Primary Exergy Flux')
     
-%     figure;
-%     hold on;
-%     for i = 1 : length(data.table(:,1))
-%         plot(data.table(i,4),data.table(i,3),'b^');
-%     end
-%     title('h-s');
-%     hold off;
-
+    %% FIG 5 EXHAUST AIR
+    FIG(5) = figure('visible',visibility);
+    label_air = {'massflow of N_2','massflow of CO_2','massflow of H_2O','massflow of O_2'};
+    pie([ COMBUSTION.fumTG(2)  COMBUSTION.fumTG(3) COMBUSTION.fumTG(4) COMBUSTION.fumTG(1) ],label_air)
+    title('Exhaust Air Composition')
+    STRAIR1 = sprintf('massflow of N_2  %.1f [kg/s]',COMBUSTION.fumTG(2));
+    STRAIR2 = sprintf('massflow of CO_2 %.1f [kg/s]',COMBUSTION.fumTG(3));
+    STRAIR3 = sprintf('massflow of H_2O %.1f [kg/s]',COMBUSTION.fumTG(4));
+    STRAIR4 = sprintf('massflow of O_2  %.1f [kg/s]',COMBUSTION.fumTG(1));
+    legend(STRAIR1,STRAIR2,STRAIR3,STRAIR4,'Location','southeastoutside');
+    colormap summer;
     %%
+    if display == 1
     format short g;
     disp('    p[bar]     T[K]      h[KJ]     s[KJ/K]        v      e[KJ]');
     disp([data.table(:,1)/10^5 data.table(:,2) data.table(:,3)/10^3 data.table(:,4)/10^3 data.table(:,5) data.table(:,6)/10^3]);
     disp('  WmC[KJ]   WmT[KJ]   Wm[KJ]    mdot_g     mdot_c   mdot_a');
     disp([WmC/10^3 WmT/10^3 Wm/10^3 mdot_g mdot_c mdot_a]);
-    disp('eta_cyclen eta_toten eta_cyclex eta_totex eta_rotex eta_combex eta_mec');
-    disp([ETA(1) ETA(2) ETA(3) ETA(4) ETA(5) ETA(6) eta_mec]);
-end
+    end
+
 end

@@ -56,7 +56,7 @@ if isfield(options,'x5')        , x5 = options.x5;            else x5 = 1;      
 if isfield(options,'eta_SiC')   , eta_SiC = options.eta_SiC;  else eta_SiC = 0.9;    end %   -option.eta_SiC    [-] : Isotrenpic efficiency for compression
 if isfield(options,'eta_SiT')   , eta_SiT = options.eta_SiT;  else eta_SiT(1) = 0.9;
                                                                    eta_SiT(2) = 0.9; end %   -option.eta_SiT   [-]  : Isotrenpic efficiency for compression
-if isfield(options,'GT')        , optionsGT = options.GT;     else optionsGT.T3 = 1100+273.15;end 
+if isfield(options,'GT')        , optionsGT = options.GT;     else optionsGT.T3 = 1150+273.15;end 
                                                                                          %   -options.GT    [struct] : options for Gas turbine (see GT function)    
 %% GAS TURBINE COMPUTATION
 % REQUIRE GT.m
@@ -72,13 +72,13 @@ P_E_G = 225*10^6;
 % [ p T h s v e x ]
 TpinchChim = 10;               % Heat exchanger of the exit GT
 T_pinch_EVA_HP = 5;
-T_pinch_EVA_LP = 70; 
+T_pinch_EVA_LP = 90; 
 T_pinch_ECO_HP_SUP_LP = 120;
 Pump_comp = [250 13];          % Compression Ratio
 Cond_loss = 0.1;               % Condensor Pressure Loss
 h0_273 = XSteam('h_pT',1,T_0); % Enthalpy0 at 273
 s0_273 = XSteam('s_pT',1,T_0); % Entropy0 at 273
-k_hp = 0.85;                    % Ratio of HP LP water fraction
+k_hp = 0.86;                    % Ratio of HP LP water fraction
 
 %% STATE AFTER HEATING
 table(3,1) = phig; %[bar] 
@@ -229,7 +229,7 @@ ETA(5) = GT_ETA(3);
 %   -eta(6)  : eta_totex, overall exergie efficiency
 ETA(6) = (P_e+P_E_G)/1e3/(GT_MASSFLOW(2)*GT_COMBUSTION.e_c);
 %   -eta(7)  : eta_gen, Steam generator energy efficiency
-ETA(7) = ( mdot_w_HP*(table(3,3)-table(2,3)) + mdot_w_LP*(table(4,3)-table(2,3)) - mdot_w_HP*WmC2 )/(GT_MASSFLOW(2)*GT_COMBUSTION.LHV);
+ETA(7) = (GT_MASSFLOW(2)*GT_COMBUSTION.LHV)/( mdot_w_HP*(table(3,3)-table(2,3)) + mdot_w_LP*(table(4,3)-table(2,3)) );
 %   -eta(8)  : eta_gex, Steam generator exergy efficiency
 ETA(8) = ( mdot_w_HP*(table(3,6)-table(2,6)) + mdot_w_LP*(table(4,6)-table(2,6)))/(GT_MASSFLOW(2)*e_c);
 %   -eta(9)  : eta_combex, Combustion exergy efficiency
@@ -289,7 +289,50 @@ if display == 1, visibility = 'on';  else visibility = 'off';  end
     h(1) = plot(NaN,NaN,'--r');
     h(2) = plot(NaN,NaN,'--g');
     h(3) = plot(NaN,NaN,'--k');
-    legend(h,'HP Evolution Part','LP Part Evolution','GT Gas Evolution');
+    legend(h,'HP Evolution Part','LP Part Evolution','GT Gas Evolution','Location','north');
+    
+    grid on;
+    grid minor;
+    hold off;
+    title('CCGT2P T-S Diagram ');
+    xlabel('Entropy [kJ/C°]');
+    ylabel('Temperature [C°]');
+    %visibility = 'off';
+%%  FIG 2 - H-S Diagram    
+    FIG(2) = figure('visible',visibility);
+    hold on;
+     T=linspace(0,375,1000);  
+     for i= 1 : length(T)
+          S1(i)=XSteam('sL_T',T(i));
+          S2(i)=XSteam('sV_T',T(i));
+          H1(i)=XSteam('HL_T',T(i));
+          H2(i)=XSteam('HV_T',T(i));
+     end   
+     S=[S1,S2];
+     H=[H1,H2];
+    plot(S,H,'b:');
+    for i = 1 : 10
+        plot(table(i,4),table(i,3),'k^');
+        text(table(i,4)+0.1,table(i,3)+0.1,sprintf('%d',i));
+        %if i <= length(table(:,1))-1, plot([table(i,4) table(i+1,4)], [table(i,2) table(i+1,2)]), end
+        if i <= 4 && i ~= 2, plot([table(i,4) table(i+1,4)], [table(i,3) table(i+1,3)],'b'), end
+    end
+    %plot([table(length(table(:,1)),4) table(1,4)], [table(length(table(:,1)),2) table(1,2)])
+    plot([table(5,4) table(1,4)], [table(5,3) table(1,3)])
+    % CHIMNEE
+    plot([table(2,4) table(6,4)], [table(2,3) table(6,3)],'b--')
+    plot([table(6,4) table(7,4)], [table(6,3) table(7,3)],'g--')
+    plot([table(6,4) table(8,4)], [table(6,3) table(8,3)],'g--')
+    plot([table(8,4) table(4,4)], [table(8,3) table(4,3)],'g--')
+    plot([table(7,4) table(9,4)], [table(7,3) table(9,3)],'r--')
+    plot([table(9,4) table(10,4)], [table(9,3) table(10,3)],'r--')
+    plot([table(10,4) table(3,4)], [table(10,3) table(3,3)],'r--')
+    
+    h = zeros(3, 1);
+    h(1) = plot(NaN,NaN,'--r');
+    h(2) = plot(NaN,NaN,'--g');
+    h(3) = plot(NaN,NaN,'--k');
+    legend(h,'HP Evolution Part','LP Part Evolution','GT Gas Evolution','Location','southeast');
     
     grid on;
     grid minor;
@@ -307,31 +350,53 @@ if display == 1, visibility = 'on';  else visibility = 'off';  end
     colormap parula
 %%  FIG 3 - ENERGETIC POWER
     FIG(3)= figure('visible',visibility);
-    LOSS_MECA   = (P_e+P_E_G)/1e3*(1-eta_mec);
+    LOSS_MECA   = (P_e)/1e3*(1-eta_mec);
     LOSS_COND   = abs((table(5,3)-table(1,3)))*mdot_w;
-    LOSS_CHIM   = abs((table(11,3)-table(16,3)))*GT_MASSFLOW(3);
+    LOSS_CHIM   = table(16,3)*GT_MASSFLOW(3);
     LOSS_MECAGT = GT_DATEN(1)/1e3;
-    LOSS_ECHAGT = GT_DATEN(2)/1e3;
-    ENPO = [P_e/1e3 P_E_G/1e3 LOSS_MECA LOSS_MECAGT LOSS_COND LOSS_CHIM  LOSS_ECHAGT];
-    F3labels = {'Effective Power ST';'Effective Power GT';'Mecanic Losses';'Mecanic Losses GT';'Condensor Losses';'Chimney Losses';'Exchanger Losses GT'};
+    ENPO = [P_e/1e3 P_E_G/1e3 LOSS_MECA LOSS_MECAGT LOSS_COND LOSS_CHIM ];
+    F3labels = {'Effective Power ST';'Effective Power GT';'Mecanic Losses ST';'Mecanic Losses GT';'Condensor Losses';'Chimney Losses'};
     pie(ENPO,F3labels);
+    STREN1 = sprintf('Effective Power ST %.1f [MW]'  ,P_e/1e6);
+    STREN2 = sprintf('Effective Power GT %.1f [MW]'  ,P_E_G/1e6);
+    STREN3 = sprintf('Mecanic Losses ST %.1f [MW]'   ,LOSS_MECA/1e3);
+    STREN4 = sprintf('Mecanic Losses GT %.1f [MW]'   ,LOSS_MECAGT/1e3);
+    STREN5 = sprintf('Condensor Losses %.1f [MW]'    ,LOSS_COND/1e3);
+    STREN6 = sprintf('Chimney Losses %.1f [MW]'      ,LOSS_CHIM/1e3);
+    legend(STREN1,STREN2,STREN3,STREN4,STREN5,STREN6,'Location','northeastoutside');
     title('Primary Energy Power')
     colormap summer;
 %%  FIG 4 - EXERGY FLOW
     FIG(3)= figure('visible',visibility);
     LOSS_EX_COMB = GT_DATEX(3)/1e3;
     LOSS_EX_CHEM = table(16,6)*GT_MASSFLOW(3);
-    LOSS_EX_ROTO = (mdot_w * WmC + mdot_w_HP * WmC2 - mdot_w*(table(2,6)-table(1,6))+ mdot_w_HP*(table(3,6)-table(4,6))+ mdot_w*(table(4,6)-table(5,6)));
-    LOSS_EX_TRAN = GT_MASSFLOW(3)*GT_DAT(5,4)-GT_MASSFLOW(1)*GT_DAT(5,1);
-    EXFL = [P_e/1e3 P_E_G/1e3 LOSS_MECA LOSS_EX_COMB LOSS_EX_CHEM LOSS_EX_TRAN LOSS_EX_ROTO];
-    F4labels = {'Effective Power ST';'Effective Power GT';'Mecanic Losses';'Combustion Losses';'Chimney Losses';'Transfert Losses';'Rotoric Losses'};
+    LOSS_EX_COND = mdot_w*(table(5,6)-table(1,6));
+    LOSS_EX_ROTO = (mdot_w * WmC + mdot_w_HP * WmC2 ...
+                  - mdot_w*(table(2,6)-table(1,6))- mdot_w_HP*(table(7,6)-table(6,6))...
+                  + mdot_w_HP*(table(3,6)-table(4,6)) + mdot_w*(table(4,6)-table(5,6))... 
+                  - Wm*mdot_w)
+    LOSS_EX_TRAN = GT_MASSFLOW(2)*e_c...
+                  -P_e/1e3-P_E_G/1e3...
+                  -LOSS_MECA-LOSS_MECAGT-LOSS_EX_CHEM-LOSS_EX_COND;
+    EXFL = [P_e/1e3 P_E_G/1e3 LOSS_MECA+LOSS_MECAGT LOSS_EX_COND LOSS_EX_COMB LOSS_EX_CHEM LOSS_EX_ROTO LOSS_EX_TRAN ];
+    F4labels = {'Effective Power ST';'Effective Power GT';'Mecanic Losses';'Condensor Losses';'Combustion Losses';'Chimney Losses';'Rotoric Losses';'Transfert Losses'};
     pie(EXFL,F4labels);
+    STREN1 = sprintf('Effective Power ST %.1f [MW]'  ,P_e/1e6);
+    STREN2 = sprintf('Effective Power GT %.1f [MW]'  ,P_E_G/1e6);
+    STREN3 = sprintf('Mecanic Losses ST %.1f [MW]'   ,(LOSS_MECA+LOSS_MECAGT)/1e3);
+    STREN4 = sprintf('Combustion Losses %.1f [MW]'   ,LOSS_EX_COMB/1e3);
+    STREN5 = sprintf('Condensor Losses %.1f [MW]'    ,LOSS_EX_COND/1e3);
+    STREN6 = sprintf('Chimney Losses %.1f [MW]'      ,LOSS_EX_CHEM/1e3);
+    STREN7 = sprintf('Rotoric Losses %.1f [MW]'      ,LOSS_EX_ROTO/1e3);
+    STREN8 = sprintf('Transfert Losses %.1f [MW]'    ,LOSS_EX_TRAN/1e3);
+    
+    legend(STREN1,STREN2,STREN3,STREN4,STREN5,STREN6,STREN7,STREN8,'Location','northeastoutside');
     title('Primary Exergy Flux')
     colormap winter;
     
-    
+    if display == 1
     format short g;
     disp('        STATE       p[bar]         T[C]         h[KJ]     s[KJ/C]            v        e[KJ]');
     disp([linspace(1,length(table(:,1)),length(table(:,1)))' table(:,1) table(:,2) (table(:,3)) (table(:,4)) table(:,5) table(:,6) ]);
-
+    end
 end
