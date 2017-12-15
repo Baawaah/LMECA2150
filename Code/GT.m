@@ -345,12 +345,17 @@ if display == 1, visibility = 'on'; else visibility = 'off'; end
     legend(STRAIR1,STRAIR2,STRAIR3,STRAIR4,'Location','southeastoutside');
     colormap summer;
     %%
+    T_due_point  = XSteam('Tsat_p', COMBUSTION.fumTG(4)/MASSFLOW(3));
     if display == 1
     format short g;
     disp('    p[bar]     T[K]      h[KJ]     s[KJ/K]        v      e[KJ]');
     disp([data.table(:,1)/10^5 data.table(:,2) data.table(:,3)/10^3 data.table(:,4)/10^3 data.table(:,5) data.table(:,6)/10^3]);
     disp('  WmC[KJ]   WmT[KJ]   Wm[KJ]    mdot_g     mdot_c   mdot_a');
     disp([WmC/10^3 WmT/10^3 Wm/10^3 mdot_g mdot_c mdot_a]);
+    disp('Chimney Due point');
+    disp(T_due_point);
     end
-
+    
+    
+    
 end

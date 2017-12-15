@@ -393,10 +393,15 @@ if display == 1, visibility = 'on';  else visibility = 'off';  end
     legend(STREN1,STREN2,STREN3,STREN4,STREN5,STREN6,STREN7,STREN8,'Location','northeastoutside');
     title('Primary Exergy Flux')
     colormap winter;
-    
+    %% DUE POINT
+    T_due_point  = XSteam('Tsat_p', GT_COMBUSTION.fumTG(4)/GT_MASSFLOW(3));
     if display == 1
     format short g;
     disp('        STATE       p[bar]         T[C]         h[KJ]     s[KJ/C]            v        e[KJ]');
     disp([linspace(1,length(table(:,1)),length(table(:,1)))' table(:,1) table(:,2) (table(:,3)) (table(:,4)) table(:,5) table(:,6) ]);
+    disp('Chimney Due point');
+    disp(T_due_point);
     end
+    
+    
 end
