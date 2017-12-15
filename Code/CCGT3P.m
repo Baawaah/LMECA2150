@@ -463,6 +463,66 @@ if display == 1, visibility = 'on'; , else visibility = 'off'; , end
     legend(STREX1,STREX2,STREX3,STREX4,STREX5,STREX6,STREX7,STREX8,'Location','southeastoutside')
     title('Primary Exergy Flux')
     colormap winter;    
+%% FIG6
+FIG(6) = figure('visible',visibility);
+FIG6A = abs((diff(table(17:24,3))))./(table(17,3)-table(24,3));
+hold on;
+plot(0,table(17,2));
+plot(1,table(24,2));
+plot([0 1], [table(17,2) table(24,2)],'k--')  
+plot([1 1-FIG6A(end)],[table(2,2) XSteam('Tsat_p',plow)],'r');
+plot([1-FIG6A(end) 1-sum(FIG6A(end-1:end))],[XSteam('Tsat_p',plow) XSteam('Tsat_p',plow)],'r');
+plot([1-sum(FIG6A(end-1:end)) 1-sum(FIG6A(end-2:end))],[ XSteam('Tsat_p',plow) XSteam('Tsat_p',pmid)],'r');
+plot([1-sum(FIG6A(end-2:end)) 1-sum(FIG6A(end-3:end))],[XSteam('Tsat_p',pmid) XSteam('Tsat_p',pmid)],'r');
+plot([1-sum(FIG6A(end-3:end)) 1-sum(FIG6A(end-4:end))],[ XSteam('Tsat_p',pmid) XSteam('Tsat_p',phig)],'r');
+plot([1-sum(FIG6A(end-4:end)) 1-sum(FIG6A(end-5:end))],[XSteam('Tsat_p',phig) XSteam('Tsat_p',phig)],'r');
+plot([1-sum(FIG6A(end-5:end)) 0],[XSteam('Tsat_p',phig) table(3,2)],'r');
+plot([1-sum(FIG6A(end:end)) 1-sum(FIG6A(end:end))],[0 XSteam('Tsat_p',plow)],'r--');
+plot([1-sum(FIG6A(end-1:end)) 1-sum(FIG6A(end-1:end))],[0 XSteam('Tsat_p',plow)],'r--');
+plot([1-sum(FIG6A(end-2:end)) 1-sum(FIG6A(end-2:end))],[0 XSteam('Tsat_p',pmid)],'r--');
+plot([1-sum(FIG6A(end-3:end)) 1-sum(FIG6A(end-3:end))],[0 XSteam('Tsat_p',pmid)],'r--');
+plot([1-sum(FIG6A(end-4:end)) 1-sum(FIG6A(end-4:end))],[0 XSteam('Tsat_p',phig)],'r--');
+plot([1-sum(FIG6A(end-5:end)) 1-sum(FIG6A(end-5:end))],[0 XSteam('Tsat_p',phig)],'r--');
+    F6T1 = text( 0.1 ,20,'SUP HP REH SUP MP');
+    F6T1.Color = 'r';
+    F6T1.Rotation = 90;
+    F6T2 = text( 0.3 ,20,'EVA HP');
+    F6T2.Color = 'r';
+    F6T2.Rotation = 90;
+    F6T31 = text( 0.43 ,20,'SUP BP');
+    F6T31.Color = 'r';
+    F6T31.Rotation = 90;
+    F6T32 = text( 0.47 ,20,'SUP MP');
+    F6T32.Color = 'r';
+    F6T32.Rotation = 90;
+    F6T33 = text( 0.51 ,20,'ECO HP');
+    F6T33.Color = 'r';
+    F6T33.Rotation = 90;
+    F6T4 = text( 0.60 ,20,'EVA MP');
+    F6T4.Color = 'r';
+    F6T4.Rotation = 90;
+    F6T51 = text( 0.69 ,20,'SUP BP');
+    F6T51.Color = 'r';
+    F6T51.Rotation = 90;
+    F6T52 = text( 0.72 ,20,'ECO MP');
+    F6T52.Color = 'r';
+    F6T52.Rotation = 90;
+    F6T6 = text( 0.80 ,20,'EVA BP');
+    F6T6.Color = 'r';
+    F6T6.Rotation = 90;
+    F6T7 = text( 0.85 ,20,'ECO BP');
+    F6T7.Color = 'r';
+    F6T7.Rotation = 90;
+    hold off;
+    xlabel('Heat Fraction Exchange');
+    ylabel('Temperature [C°]')
+    title('Evolution of the temperature');
+
+
+hold off;
+xlabel('Heat Fraction Exchange');
+ylabel('Temperature [C°]')
+title('Evolution of the temperature');
 
 %% DUE POINT
     T_due_point  = XSteam('Tsat_p', GT_COMBUSTION.fumTG(4)/GT_MASSFLOW(3)); 

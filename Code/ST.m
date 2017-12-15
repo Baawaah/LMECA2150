@@ -10,25 +10,25 @@ function [ETA,XMASSFLOW,DATEN,DATEX,DAT,MASSFLOW,COMBUSTION,FIG] = ST(P_e,option
 %         be activated)
 % P_E = electrical power output target [W]
 % OPTIONS is a structure containing :
-%   -options.nsout     [-] : Number of feed-heating 
-%   -options.reheat    [-] : Number of reheating
-%   -options.T_max     [??C] : Maximum steam temperature
-%   -options.T_cond_out[??C] : Condenseur cold outlet temperature
-%   -options.p3_hp     [bar] : Maximum pressure
-%   -options.drumFlag  [K] : if =1 then drum if =0 => no drum. 
-%   -options.eta_mec   [-] : mecanic efficiency of shafts bearings
+%   -options.nsout     [-]        : Number of feed-heating 
+%   -options.reheat    [-]        : Number of reheating
+%   -options.T_max     [degres C] : Maximum steam temperature
+%   -options.T_cond_out[degres C] : Condenseur cold outlet temperature
+%   -options.p3_hp     [bar]      : Maximum pressure
+%   -options.drumFlag  [K]        : if =1 then drum if =0 => no drum. 
+%   -options.eta_mec   [-]        : mecanic efficiency of shafts bearings
 %   -options.comb is a structure containing combustion data : 
-%       -comb.Tmax     [??C] : maximum combustion temperature
+%       -comb.Tmax     [degres C] : maximum combustion temperature
 %       -comb.lambda   [-] : air excess
 %       -comb.x        [-] : the ratio O_x/C. Example 0.05 in CH_1.2O_0.05
 %       -comb.y        [-] : the ratio H_y/C. Example 1.2 in CH_1.2O_0.05
 %   -options.p_3       [-] : High pressure after last reheating
 %   -options.x4        [-] : Vapor ratio [gaseous/liquid] (titre)
-%   -options.T0        [??C] : Reference temperature
-%   -options.TpinchSub [??C] : Temperature pinch at the subcooler
-%   -options.TpinchEx  [??C] : Temperature pinch at a heat exchanger
-%   -options.TpinchCond[??C] : Temperature pinch at condenser 
-%   -options.Tdrum     [??C] : drum temperature
+%   -options.T0        [degres C] : Reference temperature
+%   -options.TpinchSub [degres C] : Temperature pinch at the subcooler
+%   -options.TpinchEx  [degres C] : Temperature pinch at a heat exchanger
+%   -options.TpinchCond[degres C] : Temperature pinch at condenser 
+%   -options.Tdrum     [degres C] : drum temperature
 %   -option.eta_SiC    [-] : Isotrenpic efficiency for compression
 %   -option.eta_SiT    [-] : Isotrenpic efficiency for Turbine
 % DISPLAY = 1 or 0. If 1, then the code should plot graphics. If 0, then 
@@ -61,7 +61,7 @@ function [ETA,XMASSFLOW,DATEN,DATEX,DAT,MASSFLOW,COMBUSTION,FIG] = ST(P_e,option
 %   -datex(6) : perte_chemex [W]
 %   -datex(7) : perte_transex[W]
 % DAT is a matrix containing :
-% dat = {T_1       , T_2       , ...       , T_4;  [??C]
+% dat = {T_1       , T_2       , ...       , T_4;  [degres C]
 %        p_1       , p_2       , ...       , p_4;  [bar]
 %        h_1       , h_2       , ...       , h_4;  [kJ/kg]
 %        s_1       , s_2       , ...       , s_4;  [kJ/kg/K]
@@ -96,10 +96,14 @@ function [ETA,XMASSFLOW,DATEN,DATEX,DAT,MASSFLOW,COMBUSTION,FIG] = ST(P_e,option
 %  Your vector FIG will contain all the figure plot during the run of this
 %  code (whatever the size of FIG).
 %
+%
+% Authors : Julien Demey and Son Tran (2017)
+
 if nargin<3
     display = 1;
     if nargin<2
         options = struct();
+        %options.x4=0.88;
         if nargin<1
             P_e = 300e6; % [W] Puissance effective de l'installation
         end
@@ -111,22 +115,11 @@ end
 %nombre de sous intervalle pour etats 2' et 2'' si surcritique
 N_discr = 100; 
 
-% Number of feed-heating [-]
-if isfield(options,'nsout')           
-    n_sout = options.nsout;    
-else
-    n_sout = 0;  %[-] 
-end
+% Number of feed-heating : [-]
+if isfield(options,'nsout')  , n_sout = options.nsout;    else n_sout   = 8; end 
 
-% Number of reheating [-]
-if isfield(options,'reheat')   
-    n_reheat = options.reheat;
-    if n_reheat<n_sout || n_reheat==0
-        n_reheat = n_sout;
-    end
-else
-    n_reheat = 0;  %[-] 
-end
+% Number of reheating : [-]
+if isfield(options,'reheat') , n_reheat = options.reheat; else n_reheat = 1; end
 
 % Drum : if =1 then drum if = 0 => no drum. 
 if isfield(options,'drumFlag')           
@@ -134,93 +127,53 @@ if isfield(options,'drumFlag')
 elseif n_sout==0
     drumFlag = 0;    %[-] 
 else
-    drumFlag = 0;    %[-] 
+    drumFlag = 1;    %[-] 
 end
 
-% Drum temperature
-if isfield(options,'Tdrum')           
-    T_drum = options.Tdrum;    
-else
-    T_drum = 115; %[?C]   
-end
+% Drum temperature : [degres C]
+if isfield(options,'Tdrum')     , T_drum = options.Tdrum;   else T_drum = 115; end
 
-% Maximum steam temperature [?C]
-if isfield(options,'T_max')           
-    T_max = options.T_max;    
-else
-    T_max = 525;%565;  %[?C] 
-end
-
+% Maximum steam temperature : [degres C]
+if isfield(options,'T_max')     , T_max = options.T_max;    else T_max = 525;  end
+  
 % Maximum pressure [bar]
-if isfield(options,'p3_hp')           
-    p3_hp = options.p3_hp;    
-else
-    p3_hp = 200;     %[bar] (enonce : 250)
-end
+if isfield(options,'p3_hp')     , p3_hp = options.p3_hp;    else p3_hp = 200;  end
 
-% High pressure after last reheating
-if isfield(options,'p_3')           
-    p_3 = options.p_3;    
-else
-    p_3 = 70; %[bar]  
-end
+% High pressure after last reheating : [bar] 
+if isfield(options,'p_3')       , p_3 = options.p_3;        else p_3   = 70;   end
 
-% Condenseur cold outlet temperature [?C]
-if isfield(options,'T_cond_out')           
-    Tcond_out = options.T_cond_out;    
-else
-    Tcond_out = 33; %[?C]
-end
+% Condenseur cold outlet temperature : [degres C]
+if isfield(options,'T_cond_out') , Tcond_out = options.T_cond_out;  else Tcond_out = 33; end
 
-% Vapor ratio [gaseous/liquid] (titre)
-if isfield(options,'x4')           
-    x4 = options.x4;    
-else
-    x4 = 0.88; %[-]   
-end
+% Vapor ratio [gaseous/liquid] (titre) : [-]
+if isfield(options,'x4')         , x4 = options.x4;         else  x4 = 0.88;   end
 
-% Temperature pinch at the subcooler
-if isfield(options,'TpinchSub')           
-    TPinchSub = options.TpinchSub;    
-else
-    TPinchSub = 4; %[?C]  
-end
+% Temperature pinch at the subcooler : [degres C]
+if isfield(options,'TpinchSub')  , TPinchSub = options.TpinchSub;   else TPinchSub = 4;  end
 
-% Temperature pinch at a heat exchanger
-if isfield(options,'TpinchEx')           
-    TPinchEx = options.TpinchEx;    
-else
-    TPinchEx = 4; %[?C]  
-end
+% Temperature pinch at a heat exchanger : [degres C]
+if isfield(options,'TpinchEx')   , TPinchEx = options.TpinchEx;     else TPinchEx = 4;   end
 
 % Combustion data : 
 if isfield(options,'comb')           
     comb = options.comb;    
 else
-    comb.Tmax   =  1400;  % [?C] 
+    comb.Tmax   =  1400;  % [degres C] 
     comb.lambda =  1.05;  % [-] 
-    comb.x      =  0;
-    comb.y      =  4;     %CH4
+    comb.x      =  0;     % (CH_4)
+    comb.y      =  4;     % (CH_4)
 end
 
-% Mecanic efficiency of shafts bearings
-if isfield(options,'eta_mec')           
-    eta_mec = options.eta_mec;    
-else
-    eta_mec = 0.98; %[-] 
-end
+% Mecanic efficiency of shafts bearings : [-]
+if isfield(options,'eta_mec')     , eta_mec = options.eta_mec;       else eta_mec = 0.98; end
 
-% Isotrenpic efficiency for compression
-if isfield(options,'eta_SiC')           
-    eta_SiC = options.eta_SiC;    
-else
-    eta_SiC = 0.8; %[-]  
-end
+% Isotrenpic efficiency for compression : [-]
+if isfield(options,'eta_SiC')     , eta_SiC = options.eta_SiC;       else eta_SiC = 0.8;  end
 
-% Isotrenpic efficiency for Turbine
+% Isotrenpic efficiency for Turbine : [-]
 if isfield(options,'eta_SiT')           
     eta_SiT = options.eta_SiT;    
-else %A CHANGER 
+else 
     eta_SiT(1) = 0.88; %[-]
     eta_SiT(2) = 0.88; %[-]
     eta_SiT(3) = 0.88; %[-]
@@ -228,15 +181,12 @@ end
 
 %% Intermidiary Initialisation
 
-% Reference State :eau etat liquide a 15 degres
-if isfield(options,'T_0')           
-    data.T0 = options.T_0;    
-else
-    data.T0 = 15;  %[?C] 
-end
-h_ref = XSteam('hL_p',XSteam('psat_T',data.T0)); %[kj/kg]
-s_ref = XSteam('sL_p',XSteam('psat_T',data.T0)); %[kj/kgK]
-v_eau = 1/1000; %(volume massique eau)
+% Reference State : eau etat liquide : 15 [degres C]
+if isfield(options,'T_0')           , data.T0 = options.T_0;    else data.T0 = 15; end
+
+h_ref = XSteam('hL_p',XSteam('psat_T',data.T0)); %[kJ/kg]
+s_ref = XSteam('sL_p',XSteam('psat_T',data.T0)); %[kJ/kgK]
+v_eau = 1/1000;                                  %[m^3/kg]
     
 %% Auxiliary functions    
 % Exergy
@@ -255,20 +205,123 @@ function [x_corr] = titre_corr(x_current,h_current,p)
     end    
 end
 
-
 %% Simulation
+if isfield(options,'x4')
+    etat_6  = zeros(1,6); % p,T,h,s,x,e
+    etat_6(1,5) = options.x4;   
+    if n_reheat>0
+        %Etat 5 : sortie resurchauffe. Dernier 5i est entree turbine LP
+        etat_5i = zeros(n_reheat,6); % p,T,h,s,x,e
+        etat_5i(n_reheat,1) = p_3;                                   
+        etat_5i(n_reheat,2) = T_max;                           
+        etat_5i(n_reheat,3) = XSteam('h_pT',etat_5i(n_reheat,1),etat_5i(n_reheat,2)); 
+        etat_5i(n_reheat,5) = titre_corr(XSteam('x_ph',etat_5i(n_reheat,1),etat_5i(n_reheat,3)),etat_5i(n_reheat,3),etat_5i(n_reheat,1)); 
+        
+        etat_6(1,2)         = Tcond_out;                        
+        etat_6(1,3)         = XSteam('h_Tx',etat_6(1,2),etat_6(1,5));          
+        h_6_is              = etat_5i(n_reheat,3)-(etat_5i(n_reheat,3)-etat_6(n_reheat,3))/eta_SiT(3);         
+        etat_6(1,1)         = XSteam('psat_T',etat_6(1,2)); 
+        etat_6(1,4)         = XSteam('s_ph',etat_6(1,1),etat_6(1,3));          
+        
+        etat_5i(n_reheat,4) = XSteam('s_ph',etat_6(1,1),h_6_is);        
+        etat_5i(n_reheat,6) = exergy(etat_5i(n_reheat,3),h_ref,etat_5i(n_reheat,4),s_ref,data.T0);
+        
+        etat_6(1,6)         = exergy(etat_6(1,3),h_ref,etat_6(1,4),s_ref,data.T0);
+    
+        % Etat 3 : sortie de chaudiere
+        etat_3(1,1)  = p3_hp;
+        etat_3(1,2)  = T_max;
+        etat_3(1,3)  = XSteam('h_pT',etat_3(1,1),etat_3(1,2));
+        etat_3(1,4)  = XSteam('s_pT',etat_3(1,1),etat_3(1,2));
+        etat_3(1,5)  = titre_corr(XSteam('x_ph',etat_3(1,1),etat_3(1,3)),etat_3(1,3),etat_3(1,1));
+        etat_3(1,6) = exergy(etat_3(1,3),h_ref,etat_3(1,4),s_ref,data.T0);
+    
+        % SORTIES CHAUDIERE APRES RESURCHAUFFE
+        for i=1:n_reheat-1
+            delta_S = (etat_5i(n_reheat,4)-etat_3(1,4))/n_reheat;
+            etat_5i(i,4)  = delta_S*i+etat_3(1,4);
+            etat_5i(i,2)=T_max;
+            f_s = @(p) XSteam('T_ps',p,etat_5i(i,4))-etat_5i(i,2);
+            etat_5i(i,1) = fsolve(f_s,0.1,optimoptions('fsolve','Display','off'));
+          
+            etat_5i(i,3) = XSteam('h_pT',etat_5i(i,1),etat_5i(n_reheat,2));
+            etat_5i(i,5) = titre_corr(XSteam('x_ph', etat_5i(i,1), etat_5i(i,3)),etat_5i(i,3),etat_5i(i,1));
+            etat_5i(i,6) = exergy(etat_5i(i,3),h_ref,etat_5i(i,4),s_ref,data.T0);
+        end
 
-%% INIT : 
-% SORTIE CHAUDIERE APRES(possible) RESURCHAUFFE avant turbine LP
-% (vapeur surchaufee)
-if n_reheat==0
-    etat_3(1,1)  = p_3;
-    etat_3(1,2)  = T_max;
-    etat_3(1,3)  = XSteam('h_pT',etat_3(1,1),etat_3(1,2));
-    etat_3(1,4)  = XSteam('s_pT',etat_3(1,1),etat_3(1,2));
-    etat_3(1,5)  = titre_corr(XSteam('x_ph',etat_3(1,1),etat_3(1,3)),etat_3(1,3),etat_3(1,1));
-    etat_3(1,6) = exergy(etat_3(1,3),h_ref,etat_3(1,4),s_ref,data.T0);
-end
+        % SORTIES HP Turbine (pour resurchauffe)
+        etat_4i = zeros(n_reheat,6); % p,T,h,s,x,e
+        for i=1:n_reheat 
+            etat_4i(i,1) = etat_5i(i,1);
+            if i==1
+                s_4_is          = etat_3(1,4);
+            else
+                s_4_is          = etat_5i(i-1,4);
+            end
+            h_4_is              = XSteam('h_ps', etat_4i(i,1), s_4_is);
+            if i==1
+                etat_4i(i,3) = etat_3(1,3) + eta_SiT(1)*(h_4_is-etat_3(1,3));
+            else
+                etat_4i(i,3) = etat_5i(i-1,3) + eta_SiT(1)*(h_4_is-etat_5i(i-1,3));
+            end
+            etat_4i(i,2) = XSteam('T_ph', etat_4i(i,1), etat_4i(i,3));
+            etat_4i(i,4) = XSteam('s_ph', etat_4i(i,1), etat_4i(i,3));
+            etat_4i(i,5) = titre_corr(XSteam('x_ph',etat_4i(i,1), etat_4i(i,3)),etat_4i(i,3), etat_4i(i,1));
+            etat_4i(i,6) = exergy(etat_4i(i,3), h_ref, etat_4i(i,4), s_ref, data.T0);
+        end
+        reheat_T=[];
+        reheat_s=[];
+        for i=1:n_reheat
+            reheat_T = [reheat_T,[etat_4i(i,2)' etat_5i(i,2)']];
+            reheat_s = [reheat_s,[etat_4i(i,4)' etat_5i(i,4)']];
+        end
+    else
+        etat_3(1,1) = p_3;                                   
+        etat_3(1,2) = T_max;                           
+        etat_3(1,3) = XSteam('h_pT',etat_3(1,1),etat_3(1,2)); 
+        etat_3(1,5) = titre_corr(XSteam('x_ph',etat_3(1,1),etat_3(1,3)),etat_3(1,3),etat_3(1,1)); 
+        
+        etat_6(1,2) = T_cond_out;                        
+        etat_6(1,3) = XSteam('h_Tx',etat_6(1,1),etat_6(1,5));    
+        h_6_is      = etat_3(1,3)-(etat_3(1,3)-etat_6(1,3))/eta_SiT(3);  
+        etat_6(1,1) = XSteam('psat_T',etat_4(1,2)); 
+        etat_6(1,4) = XSteam('s_ph',etat_4(1,1),etat_6(1,3));
+        
+        etat_3(1,4) = XSteam('s_ph',etat_4(1,1),h_6_is);        
+        etat_3(1,6) = exergy(etat_3(1,3),h_ref,etat_3(1,4),s_ref,data.T0);
+        
+        etat_6(1,6) = exergy(etat_3(1,3),h_ref,etat_3(1,4),s_ref,data.T0);
+    end
+%% LP Turbine : SORTIE ----> ?? TRAITER CAS OU x4 est donne!
+% etat isentropique : hyp : temperature fin de detente idem condenseur   
+    etat_6(1,2) = Tcond_out;
+    etat_6(1,1) = XSteam('psat_t', etat_6(1,2));
+% etat isentropique    
+    if n_reheat==0
+        s_6_is = etat_3(1,4); 
+        h_6_is = XSteam('h_ps', etat_6(1,1), s_6_is);
+        etat_6(1,3)  = etat_3(1,3) + eta_SiT(3)*(h_6_is-etat_3(1,3));
+    else
+        s_6_is = etat_5i(n_reheat,4); 
+        h_6_is = XSteam('h_ps', etat_6(1,1), s_6_is);
+        etat_6(1,3)  = etat_5i(n_reheat,3) + eta_SiT(3)*(h_6_is-etat_5i(n_reheat,3));
+    end
+% etat reel
+    etat_6(1,4)  = XSteam('s_ph', etat_6(1,1), etat_6(1,3));
+    etat_6(1,5)  = titre_corr(XSteam('x_ph', etat_6(1,1), etat_6(1,3)),etat_6(1,3),etat_6(1,1));
+    etat_6(1,6)  = exergy(etat_6(1,3), h_ref, etat_6(1,4), s_ref, data.T0);
+else
+    %% INIT : 
+    % SORTIE CHAUDIERE APRES(possible) RESURCHAUFFE avant turbine LP
+    % (vapeur surchaufee)
+    if n_reheat==0
+        etat_3(1,1)  = p_3;
+        etat_3(1,2)  = T_max;
+        etat_3(1,3)  = XSteam('h_pT',etat_3(1,1),etat_3(1,2));
+        etat_3(1,4)  = XSteam('s_pT',etat_3(1,1),etat_3(1,2));
+        etat_3(1,5)  = titre_corr(XSteam('x_ph',etat_3(1,1),etat_3(1,3)),etat_3(1,3),etat_3(1,1));
+        etat_3(1,6)  = exergy(etat_3(1,3),h_ref,etat_3(1,4),s_ref,data.T0);
+    end
 
 %% Etats 4i et 5i avant et apres resurchauffe i     
 if n_reheat>0
@@ -277,56 +330,32 @@ if n_reheat>0
     etat_3(1,3)  = XSteam('h_pT',etat_3(1,1),etat_3(1,2));
     etat_3(1,4)  = XSteam('s_pT',etat_3(1,1),etat_3(1,2));
     etat_3(1,5)  = titre_corr(XSteam('x_ph',etat_3(1,1),etat_3(1,3)),etat_3(1,3),etat_3(1,1));
-    etat_3(1,6) = exergy(etat_3(1,3),h_ref,etat_3(1,4),s_ref,data.T0);
+    etat_3(1,6)  = exergy(etat_3(1,3),h_ref,etat_3(1,4),s_ref,data.T0);
     
-    % SORTIES CHAUDIERE APRES RESURCHAUFFE ---> ??
+    % SORTIES CHAUDIERE APRES RESURCHAUFFE
     etat_5i = zeros(n_reheat,6); % p,T,h,s,x,e
-    %p_reheat = linspace(etat_3(1,1),p_3,n_reheat+1);
-%     delta_p = (p_3-etat_3(1,1))/(n_reheat);
-        etat_5i(n_reheat,1)=p_3;
-        etat_5i(n_reheat,2)=T_max;
-        etat_5i(n_reheat,3)=XSteam('h_pT',etat_5i(n_reheat,1),etat_5i(n_reheat,2));
-        etat_5i(n_reheat,4)=XSteam('s_pT',etat_5i(n_reheat,1),etat_5i(n_reheat,2));
-        etat_5i(n_reheat,5)=titre_corr(XSteam('x_ph', etat_5i(n_reheat,1), etat_5i(n_reheat,3)),etat_5i(n_reheat,3),etat_5i(n_reheat,1));
-        etat_5i(n_reheat,6)=exergy(etat_5i(n_reheat,3),h_ref,etat_5i(n_reheat,4),s_ref,data.T0);
+    etat_5i(n_reheat,1) = p_3;
+    etat_5i(n_reheat,2) = T_max;
+    etat_5i(n_reheat,3) = XSteam('h_pT',etat_5i(n_reheat,1),etat_5i(n_reheat,2));
+    etat_5i(n_reheat,4) = XSteam('s_pT',etat_5i(n_reheat,1),etat_5i(n_reheat,2));
+    etat_5i(n_reheat,5) = titre_corr(XSteam('x_ph', etat_5i(n_reheat,1), etat_5i(n_reheat,3)),etat_5i(n_reheat,3),etat_5i(n_reheat,1));
+    etat_5i(n_reheat,6) = exergy(etat_5i(n_reheat,3),h_ref,etat_5i(n_reheat,4),s_ref,data.T0);  
+    
     for i=1:n_reheat-1
+        delta_S      = (etat_5i(n_reheat,4)-etat_3(1,4))/n_reheat;
+        etat_5i(i,4) = delta_S*i+etat_3(1,4);
+        etat_5i(i,2) = T_max;
         
-%         if i==1
-%             etat_5i(i,1) = delta_p*i+etat_3(1,1);   
-%             etat_5i(i,2) = T_max;
-%             etat_5i(i,3) = XSteam('h_pT', etat_5i(i,1), etat_5i(i,2));
-%             etat_5i(i,4) = XSteam('s_pT', etat_5i(i,1), etat_5i(i,2));
-%         
-%         else 
-%         end
-%         etat_5i(i,1) = delta_p*i+etat_3(1,1);   
-%         etat_5i(i,2) = T_max;
-%         etat_5i(i,3) = XSteam('h_pT', etat_5i(i,1), etat_5i(i,2));
-%         etat_5i(i,4) = XSteam('s_pT', etat_5i(i,1), etat_5i(i,2));
-%         etat_5i(i,5) = titre_corr(XSteam('x_ph', etat_5i(i,1), etat_5i(i,3)),etat_5i(i,3),etat_5i(i,1));
-%         etat_5i(i,6) = exergy(etat_5i(i,3), h_ref, etat_5i(i,4), s_ref, data.T0); 
-           
-
-           delta_S = (etat_5i(n_reheat,4)-etat_3(1,4))/n_reheat;
-           etat_5i(i,4)  = delta_S*i+etat_3(1,4);
-           etat_5i(i,2)=T_max;
-           f_s = @(p) XSteam('T_ps',p,etat_5i(i,4))-etat_5i(i,2);
-           etat_5i(i,1) = fsolve(f_s,0.1,optimoptions('fsolve','Display','off'));
+        f_s = @(p) XSteam('T_ps',p,etat_5i(i,4))-etat_5i(i,2);
+        etat_5i(i,1) = fsolve(f_s,0.1,optimoptions('fsolve','Display','off'));
           
-           etat_5i(i,3) = XSteam('h_pT',etat_5i(i,1),etat_5i(n_reheat,2));
-           etat_5i(i,5) = titre_corr(XSteam('x_ph', etat_5i(i,1), etat_5i(i,3)),etat_5i(i,3),etat_5i(i,1));
-           etat_5i(i,6) = exergy(etat_5i(i,3),h_ref,etat_5i(i,4),s_ref,data.T0);
+        etat_5i(i,3) = XSteam('h_pT',etat_5i(i,1),etat_5i(n_reheat,2));
+        etat_5i(i,5) = titre_corr(XSteam('x_ph', etat_5i(i,1), etat_5i(i,3)),etat_5i(i,3),etat_5i(i,1));
+        etat_5i(i,6) = exergy(etat_5i(i,3),h_ref,etat_5i(i,4),s_ref,data.T0);
     
     end
-    %%BAUMANN : quand on gagne 1% d'humidite, on perd 1% de rendement
-    %if (n_reheat(i,4)<XSteam('sV_p',n_reheat(i,1)))
-    %    s_L = XSteam('sL_p',n_reheat(i,1));
-    %    x = (n_reheat(i,4)-s_L)/(XSteam('sV_p',reheat(i,1))-s_L);
-    %    eta_SiT(1) = eta_SiT(1) - (1-x);    
-    %end
-
-    %p3 =etat_3(1,1)
-    % SORTIES HP Turbine (pour resurchauffe) ---> ??
+    
+    % SORTIES HP Turbine (pour resurchauffe)
     etat_4i = zeros(n_reheat,6); % p,T,h,s,x,e
     for i=1:n_reheat 
         etat_4i(i,1) = etat_5i(i,1);
@@ -335,10 +364,9 @@ if n_reheat>0
         else
             s_4_is          = etat_5i(i-1,4);
         end
+        
         h_4_is              = XSteam('h_ps', etat_4i(i,1), s_4_is);
-        %VERIFIER SI PAS COMMENCER GENRE AVEC UN IF i==1 pour calculer le
-        %h_3 puis prendre a chaque fois les valeurs de 4i(i-1) pour les h
-        %entre chaque detente
+
         if i==1
             etat_4i(i,3) = etat_3(1,3) + eta_SiT(1)*(h_4_is-etat_3(1,3));
         else
@@ -377,65 +405,63 @@ end %end if reheat
     etat_6(1,4)  = XSteam('s_ph', etat_6(1,1), etat_6(1,3));
     etat_6(1,5)  = titre_corr(XSteam('x_ph', etat_6(1,1), etat_6(1,3)),etat_6(1,3),etat_6(1,1));
     etat_6(1,6) = exergy(etat_6(1,3), h_ref, etat_6(1,4), s_ref, data.T0);
+end
 
-% SORTIE CONDENSEUR ---> OK
-% liquide sature en sortie de condenseur
+% SORTIE CONDENSEUR : liquide sature 
     etat_7(1,2)  = Tcond_out;
     etat_7(1,1)  = XSteam('psat_T',etat_7(1,2));
     etat_7(1,3)  = XSteam('hL_T',etat_7(1,2));
     etat_7(1,4)  = XSteam('sL_T',etat_7(1,2));
     etat_7(1,5)  = titre_corr(XSteam('x_ph',etat_7(1,1),etat_7(1,3)),etat_7(1,3),etat_7(1,1));
-    %VERIFIER QUE BIEN TITRE NUL -> liquide sature
     etat_7(1,6) = exergy(etat_7(1,3), h_ref, etat_7(1,4), s_ref, data.T0);
  
 %% Soutirages - etats soutire des turbines 6i
 if n_sout>0  
-
-if n_reheat>0    
-    etat_6i = zeros(n_sout,6); % p,T,h,s,x,e
-    delta_h_sout = (etat_5i(n_reheat,3)-etat_6(1,3))/(n_sout+1-n_reheat);
-else
-    etat_6i = zeros(n_sout,6); % p,T,h,s,x,e
-    delta_h_sout = (etat_3(1,3)-etat_6(1,3))/(n_sout+1);
-end
-for i=1:n_sout 
-    if n_reheat>0 && i>(n_sout-n_reheat) % de HP
-        etat_6i(i,1) = etat_4i(n_sout-i+1,1); %p
-        etat_6i(i,2) = etat_4i(n_sout-i+1,2); %T
-        etat_6i(i,3) = etat_4i(n_sout-i+1,3); %h
-        etat_6i(i,4) = etat_4i(n_sout-i+1,4); %s
-        etat_6i(i,5) = etat_4i(n_sout-i+1,5); %x
-        etat_6i(i,6) = etat_4i(n_sout-i+1,6); %ex
-    else % de LP
-        if n_reheat==0
-            etat_6i(i,3) = etat_6(1,3) + delta_h_sout*i;
-            h_6i_is           = etat_3(1,3) - (etat_3(1,3)-etat_6i(i,3))/eta_SiT(3);
-            s_6i_is           = etat_3(1,4);
-        else
-            etat_6i(i,3) = etat_6(1,3) + delta_h_sout*i;
-            h_6i_is           = etat_5i(n_reheat,3) - (etat_5i(n_reheat,3)-etat_6i(i,3))/eta_SiT(3);
-            s_6i_is           = etat_5i(n_reheat,4);
-        end
-        
-        etat_6i(i,1) = XSteam('p_hs',h_6i_is,s_6i_is); %idem que p_6i_is
-        etat_6i(i,2) = XSteam('T_ph',etat_6i(i,1),etat_6i(i,3));
-        etat_6i(i,4) = XSteam('s_ph',etat_6i(i,1),etat_6i(i,3));
-        etat_6i(i,5) = titre_corr(XSteam('x_ph',etat_6i(i,1),etat_6i(i,3)),etat_6i(i,3),etat_6i(i,1));
-        etat_6i(i,6) = exergy(etat_6i(i,3), h_ref, etat_6i(i,4), s_ref, data.T0);
-        
-        %%BAUMANN : quand on gagne 1% d'humidite, on perd 1% de rendement
-        %if (etat_6i(i,4)<XSteam('sV_p',etat_6i(i,1)))
-        %    s_L = XSteam('sL_p',etat_6i(i,1));
-        %    x = (etat_6i(i,4)-s_L)/(XSteam('sV_p',etat_6i(i,1))-s_L);
-        %    eta_SiT(3) = eta_SiT(3) - (1-x);
-        %end
+    if n_reheat>0    
+        etat_6i = zeros(n_sout,6); % p,T,h,s,x,e
+        delta_h_sout = (etat_5i(n_reheat,3)-etat_6(1,3))/(n_sout+1-n_reheat);
+    else
+        etat_6i = zeros(n_sout,6); % p,T,h,s,x,e
+        delta_h_sout = (etat_3(1,3)-etat_6(1,3))/(n_sout+1);
     end
-end
+    for i=1:n_sout 
+        if n_reheat>0 && i>(n_sout-n_reheat) % de HP
+            etat_6i(i,1) = etat_4i(n_sout-i+1,1); %p
+            etat_6i(i,2) = etat_4i(n_sout-i+1,2); %T
+            etat_6i(i,3) = etat_4i(n_sout-i+1,3); %h
+            etat_6i(i,4) = etat_4i(n_sout-i+1,4); %s
+            etat_6i(i,5) = etat_4i(n_sout-i+1,5); %x
+            etat_6i(i,6) = etat_4i(n_sout-i+1,6); %ex
+        else % de LP
+            if n_reheat==0
+                etat_6i(i,3) = etat_6(1,3) + delta_h_sout*i;
+                h_6i_is      = etat_3(1,3) - (etat_3(1,3)-etat_6i(i,3))/eta_SiT(3);
+                s_6i_is      = etat_3(1,4);
+            else
+                etat_6i(i,3) = etat_6(1,3) + delta_h_sout*i;
+                h_6i_is      = etat_5i(n_reheat,3) - (etat_5i(n_reheat,3)-etat_6i(i,3))/eta_SiT(3);
+                s_6i_is      = etat_5i(n_reheat,4);
+            end
+        
+            etat_6i(i,1) = XSteam('p_hs',h_6i_is,s_6i_is); %idem que p_6i_is
+            etat_6i(i,2) = XSteam('T_ph',etat_6i(i,1),etat_6i(i,3));
+            etat_6i(i,4) = XSteam('s_ph',etat_6i(i,1),etat_6i(i,3));
+            etat_6i(i,5) = titre_corr(XSteam('x_ph',etat_6i(i,1),etat_6i(i,3)),etat_6i(i,3),etat_6i(i,1));
+            etat_6i(i,6) = exergy(etat_6i(i,3), h_ref, etat_6i(i,4), s_ref, data.T0);
+
+%         %%BAUMANN : quand on gagne 1% d'humidite, on perd 1% de rendement
+%         if (etat_6i(i,4) < XSteam('sV_p',etat_6i(i,1)))
+%            s_L = XSteam('sL_p',etat_6i(i,1));
+%            x = (etat_6i(i,3)-s_L)/(XSteam('sV_p',etat_6i(i,1))-s_L)
+%            eta_SiT(3) = eta_SiT(3) - (1-x)
+%         end       
+        end
+    end
 
 %% SORTIE RECHAUFFEURS R_I, R_II,...R_nsout etats 7i
 % amene le fluide chaud de maniere isobare jusque etat de liquide sature
 % liquide sature a la pression de soutirage
-etat_7i      = zeros(n_sout,6); % p,T,h,s,x,e 
+etat_7i = zeros(n_sout,6); % p,T,h,s,x,e 
 
 for i=1:n_sout
     etat_7i(i,1) = etat_6i(i,1); %isobare
@@ -455,25 +481,23 @@ end
 etat_9i      = zeros(n_sout,6); % p,T,h,s,x 
 etat_9i(:,2) = etat_7i(new_index(:),2) - TPinchEx;
 if drumFlag==1
-    % imposer Pe telle que la pression en 9_nsout (ou avant le degazeur) soit suffisamment ?lev?e pour
-    % qu'a la temperature de 9_nsout on soit toujours a l'etat liquide et ne
-    % pas avoir de vapeur (donc prendre Pe> Psat(T_9_nsout)
+    %Imposer p9_nsout (ou avant degazeur) telle que suffisamment elevee
+    %pour que a T9_nsout, on soit toujours suffisamment haut pour 
+    %eviter phenomene de corrosion dans la pompe : prendre Pe > Psat(T_9_nsout)
     
     % Position degazeur
-    drum_index = 2; %
+    drum_index = 2; %pas d'interet d'avoir de drum si si peu de soutirages
     while etat_9i(drum_index-1,2) < T_drum  
         drum_index=drum_index+1;
     end
     etat_8(1,1)               = XSteam('psat_T',etat_9i(drum_index,2));
     etat_9i(1:drum_index-1,1) = etat_8(1,1);
-    %CHANGER le +1 en un + interessant (10? 35?)
-    etat_9i(drum_index:end,1) = XSteam('psat_T',max(etat_9i(:,2)))+35;
-    h_9s_af_drum = etat_7i(new_index(drum_index),3) + v_eau*(etat_9i(drum_index,1)-etat_7i(new_index(drum_index),1))*(1e5)/(1e3);
-    etat_9i(drum_index,3) = etat_7i(new_index(drum_index),3) + (h_9s_af_drum-etat_7i(new_index(drum_index),3))/eta_SiC;
-    %changer le 0.04 (pas vraiment necessaire temperature quasi constante
-    etat_9i(drum_index,2)     = etat_7i(new_index(drum_index),2) + (etat_9i(drum_index,3)-etat_7i(new_index(drum_index),3)-0.04*(etat_9i(drum_index,1)-etat_7i(new_index(drum_index),1)))/4.18;
+    etat_9i(drum_index:end,1) = XSteam('psat_T',max(etat_9i(:,2)))+5;
+    h_9s_af_drum              = etat_7i(new_index(drum_index),3) + v_eau*(etat_9i(drum_index,1)-etat_7i(new_index(drum_index),1))*(1e5)/(1e3);
+    etat_9i(drum_index,3)     = etat_7i(new_index(drum_index),3) + (h_9s_af_drum-etat_7i(new_index(drum_index),3))/eta_SiC;
+    etat_9i(drum_index,2)     = etat_7i(new_index(drum_index),2);% + (etat_9i(drum_index,3)-etat_7i(new_index(drum_index),3)-0.04*(etat_9i(drum_index,1)-etat_7i(new_index(drum_index),1)))/4.18;
 else
-    etat_8(1,1)  = XSteam('psat_T',max(etat_9i(:,2)))+35; %A CHANGER UNIQUEMENT TEST
+    etat_8(1,1)  = XSteam('psat_T',max(etat_9i(:,2)))+5; 
     etat_9i(:,1) = etat_8(1,1);
 end
 for i=1:n_sout
@@ -488,13 +512,13 @@ for i=1:n_sout
     etat_9i(i,6) = exergy(etat_9i(i,3),h_ref,etat_9i(i,4),s_ref, data.T0);
 end
 
-%% SORTIE POMPE d'extraction Pe, (ENTREE R0), etat 8
-h_8_is    = etat_7(1,3) + v_eau*(etat_8(1,1)-etat_7(1,1))*(1e5)/(1e3);
+%% SORTIE POMPE d'extraction Pe, (ENTREE R0) : etat 8
+h_8_is       = etat_7(1,3) + v_eau*(etat_8(1,1)-etat_7(1,1))*(1e5)/(1e3);
 etat_8(1,3)  = etat_7(1,3) - (etat_7(1,3)-h_8_is)/eta_SiC;
 etat_8(1,2)  = etat_7(1,2) + ((etat_8(1,3)-etat_7(1,3))-0.09*(etat_8(1,1)-etat_7(1,1)))/4.18;
 etat_8(1,4)  = XSteam('s_pT',etat_8(1,1),etat_8(1,2));
 etat_8(1,5)  = titre_corr(XSteam('x_ph', etat_8(1,1), etat_8(1,3)),etat_8(1,3),etat_8(1,1));
-etat_8(1,6) = exergy(etat_8(1,3),h_ref,etat_8(1,4),s_ref,data.T0);    
+etat_8(1,6)  = exergy(etat_8(1,3),h_ref,etat_8(1,4),s_ref,data.T0);    
 
 %% Etat 10 sortie R0 sous-refroidisseur des soutirages
 etat_10(1,2)  = etat_8(1,2) + TPinchSub;
@@ -502,7 +526,7 @@ etat_10(1,1)  = etat_7i(1,1);
 etat_10(1,3)  = XSteam('h_pT',etat_10(1,1),etat_10(1,2));
 etat_10(1,4)  = XSteam('s_pT',etat_10(1,1),etat_10(1,2));
 etat_10(1,5)  = titre_corr(XSteam('x_ph',etat_10(1,1),etat_10(1,3)),etat_10(1,3),etat_10(1,1));
-etat_10(1,6) = exergy(etat_10(1,3),h_ref,etat_10(1,4),s_ref,data.T0);
+etat_10(1,6)  = exergy(etat_10(1,3),h_ref,etat_10(1,4),s_ref,data.T0);
 
 %% Etat 11 apres detente de 10
 etat_11(1,1)  = etat_7(1,1);
@@ -510,7 +534,7 @@ etat_11(1,3)  = etat_10(1,3);
 etat_11(1,2)  = XSteam('T_ph',etat_11(1,1),etat_11(1,3));
 etat_11(1,4)  = XSteam('s_ph',etat_11(1,1),etat_11(1,3));
 etat_11(1,5)  = titre_corr(XSteam('x_ph',etat_11(1,1),etat_11(1,3)),etat_11(1,3),etat_11(1,1)); 
-etat_11(1,6) = exergy(etat_11(1,3),h_ref,etat_11(1,4),s_ref,data.T0);
+etat_11(1,6)  = exergy(etat_11(1,3),h_ref,etat_11(1,4),s_ref,data.T0);
 
 %% Etat 1 = Etat dernier soutirage
 etat_1(1,1)  = etat_9i(n_sout,1);
@@ -518,17 +542,17 @@ etat_1(1,2)  = etat_9i(n_sout,2);
 etat_1(1,3)  = etat_9i(n_sout,3);
 etat_1(1,4)  = etat_9i(n_sout,4);
 etat_1(1,5)  = etat_9i(n_sout,5);
-etat_1(1,6) = etat_9i(n_sout,6);
+etat_1(1,6)  = etat_9i(n_sout,6);
 
 %% SOUTIRAGES : 
 etat_9(1,3) = etat_8(1,3); %valeur de depart
 error            = 1;
-% Fraction soutirages (pas de drum)
-%resoudre systeme Ax = b avec X les soutirages
-%remplissage termes independants
+%Resoudre systeme Ax = b avec X les soutirages
 b = zeros(n_sout,1);
 A = zeros(n_sout,n_sout);
 while error>0.01
+    
+%Fraction soutirages (avec drum degazeur)
 if drumFlag==0
     for i=1:n_sout
         if i==1
@@ -554,9 +578,7 @@ if drumFlag==0
     end
 end
 
-% Fraction soutirages (avec drum degazeur)
-%resoudre systeme Ax = b avec X les soutirages
-
+%Fraction soutirages (avec drum degazeur)
 if drumFlag==1
 for i=1:n_sout
     if i==1
@@ -594,12 +616,10 @@ for i=1:n_sout
        end
     end
 end
-end %end drumflag1
-A=A;
-b=b;
+end 
+
 %Resolution du systeme
 X = A\b;
-X=X';
 
 %Calcul du nouveau h90
 if drumFlag==1
@@ -611,8 +631,8 @@ else
 end
 error       = abs(h90_new-etat_9(1,3));
 etat_9(1,3) = h90_new;
-end %end while
-%X_sorted  = zeros(1,n_sout);
+end 
+
 X_sorted  = X(new_index); 
 X(:)      = X_sorted(:);
 
@@ -631,7 +651,7 @@ else
     etat_1(1,4)  = etat_7(1,4);
     etat_1(1,5)  = etat_7(1,5);
     etat_1(1,6) = etat_7(1,6);
-end %end n_sout>0
+end
 
 %% Steam Generator
 % Etat 2
@@ -730,7 +750,7 @@ if n_sout>0
     else 
         for i=1:n_sout+1
             if i>n_sout+1-n_reheat
-                if i==n_sout+1 %ICI
+                if i==n_sout+1
                     wm_HP    = wm_HP     + (etat_3(1,3)-etat_4i(1,3))*(1+sum(X(1:end-1)))/(1+sum(X));
                     wm_HP_ex = wm_HP_ex  + (etat_3(1,6)-etat_4i(1,6))*(1+sum(X(1:end-1)))/(1+sum(X));
                 else
@@ -751,8 +771,8 @@ if n_sout>0
     end
     wm_HP    = wm_HP+wm_LP;       %[kJ]
     wm_HP_ex = wm_HP_ex+wm_LP_ex; %[kJ]    
-elseif n_sout==0 && n_reheat>0 %OOOOK
-	for i=1:n_reheat+1
+elseif n_sout==0 && n_reheat>0 
+    for i=1:n_reheat+1
         if i==1
             wm_HP    = wm_HP    + (etat_3(i,3)-etat_4i(i,3));
             wm_HP_ex = wm_HP_ex + (etat_3(i,6)-etat_4i(i,6));
@@ -765,12 +785,13 @@ elseif n_sout==0 && n_reheat>0 %OOOOK
         end
     end   
 else %Rankine Hirn
-     wm_HP    = etat_3(1,3)-etat_6(1,3);     %[kJ]  
+     wm_HP    = etat_3(1,3)-etat_6(1,3);   %[kJ]  
      wm_HP_ex = etat_3(1,6)-etat_6(1,6);   %[kJ]
 end
-wm_turb_eff = (wm_HP)*eta_mec; %[kJ]
-wm_turb     = (wm_HP);             %[kJ]
-wm_turb_ex  = (wm_HP_ex);           %[kJ]
+wm_turb_eff = (wm_HP)*eta_mec;   %[kJ]
+wm_turb     = (wm_HP);           %[kJ]
+wm_turb_ex  = (wm_HP_ex);        %[kJ]
+
 %Travail moteur effectif pompes
  if n_sout>0
      if drumFlag==0
@@ -818,8 +839,8 @@ n_H2O  = y/2;                      %[mol]
 n_O2   = w-n_CO2-n_H2O/2-x/2;      %[mol]
 n_N2   = 3.76*w;                   %[mol]
 
-n_f  = n_CO2+n_H2O + n_O2 + n_N2;                              %[mol]
-MM_f = (n_CO2*MM_CO2+n_H2O*MM_H2O+n_N2*MM_N2+n_O2*MM_O2); %[kg/mol]
+n_f     = n_CO2+n_H2O + n_O2 + n_N2;                              %[mol]
+MM_f    = (n_CO2*MM_CO2+n_H2O*MM_H2O+n_N2*MM_N2+n_O2*MM_O2); %[kg/mol]
 MM_fuel = (12+y*1+x*16)*1e-3;                                 %[kg/mol]
 
 %PCI du carburant [kJ/kmol]
@@ -850,7 +871,7 @@ cp_a_m      = cp_am(T0+273.15,T_a+273.15) ;                      %[J/(kg*K)]
 
 
 %exergie de fumee :  (1.72) p.31
-%h_a et h_c, enthalpies sensibles de l'air et combustible, negligees
+%hpy : h_a et h_c, enthalpies sensibles de l'air et combustible, negligees
 e_f       = PCI/(lambda*m_a1+1)-cp_f_m_bar*(T0+273.15)*log(1+PCI/((lambda*m_a1+1)*cp_f_m*(T0+273.15))); %[J]
 e_exhaust = h_f_m_echap-(T0+273.15)*cp_exhaust*log((T_exhaust+273.15)/(T0+273.15));                      %[J]
 
@@ -865,7 +886,7 @@ e_a = dh_a - T0 * ds_a; %[J]
 e_cr =  0 ; % exergie du combustible associee a son enthalpie sensible : negligeable
 e_r = (e_a * (lambda*m_a1)+ e_cr)/(lambda*m_a1+1); 
 
-%fraction energetique perdu a la cheminee
+%fraction energetique perdue a la cheminee
 eps_exhaust = ((lambda*m_a1+1)*cp_exhaust*(T_exhaust+273.15)-lambda*m_a1*cp_a_m*(T_a+273.15))/PCI;
 %deperditions parietales (1%)
 eps_p       = 0.01;
@@ -884,13 +905,13 @@ COMBUSTION.Cp_g   = cp_f_m;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 
 %debit total de vapeur d'eau
-debit_m_v     = P_e/(wm_tot_eff);               %[kg/s]
+debit_m_v     = P_e/(wm_tot_eff);                    %[kg/s]
 %debit total de combustible
-debit_m_fuel  = debit_m_v*Q_II/(eta_gen*PCI);   %[kg/s]
+debit_m_fuel  = debit_m_v*Q_II/(eta_gen*PCI);        %[kg/s]
 %debit total d'air 
-debit_m_air   = debit_m_fuel*lambda*m_a1;      %[kg/s]
+debit_m_air   = debit_m_fuel*lambda*m_a1;            %[kg/s]
 %debit total des fumees
-debit_m_f     = debit_m_fuel*(1+lambda*m_a1);    %[kg/s]
+debit_m_f     = debit_m_fuel*(1+lambda*m_a1);        %[kg/s]
 %debits composition des fumees
 debit_m_f_O2  = debit_m_f*(n_O2*MM_O2)/(n_f*MM_f);   %[kg/s]
 debit_m_f_N2  = debit_m_f*(n_N2*MM_N2)/(n_f*MM_f);   %[kg/s]
@@ -898,7 +919,7 @@ debit_m_f_CO2 = debit_m_f*(n_CO2*MM_CO2)/(n_f*MM_f); %[kg/s]
 debit_m_f_H2O = debit_m_f*(n_H2O*MM_H2O)/(n_f*MM_f); %[kg/s]
 %debit soutires
 if n_sout>0
-XMASSFLOW = (debit_m_v*(X/(1+sum(X))))' ;
+    XMASSFLOW = (debit_m_v*(X/(1+sum(X))))' ;
 else
    XMASSFLOW = 0;
 end%[kg/s]
@@ -906,6 +927,9 @@ MASSFLOW(1) = debit_m_air;  %[kg/s]
 MASSFLOW(2) = debit_m_v;    %[kg/s]
 MASSFLOW(3) = debit_m_fuel; %[kg/s]
 MASSFLOW(4) = debit_m_f;    %[kg/s]
+
+frac_eau    = debit_m_f_H2O/(debit_m_f_H2O+debit_m_f_O2+debit_m_f_N2+debit_m_f_CO2);
+T_due_point = XSteam('Tsat_p',frac_eau)
 
 %composition fumees
 COMBUSTION.fum = zeros(1,4);
@@ -946,15 +970,15 @@ ETA(9) = eta_transex;
 
 
 %flux d'energie primaire
-P_toten   = debit_m_fuel*PCI;               %[W] ---->OK
-P_gen     = (1-eta_gen)*(debit_m_v*Q_II);   %[W] ---->OK
-P_mecen   = P_e*(1-eta_mec);           %[W] ---->OK
-P_conden_old  = P_toten*eta_gen*(1-eta_cyclen); %[W] ---->OK
+P_toten   = debit_m_fuel*PCI;                   %[W] ---->OK
+P_gen     = (1-eta_gen)*(debit_m_v*Q_II);       %[W] ---->OK
+P_mecen   = P_e*(1-eta_mec);                    %[W] ---->OK
+%P_conden_old  = P_toten*eta_gen*(1-eta_cyclen);%[W] ---->OK
 
 if n_sout>0
-P_conden   = (debit_m_v-sum(XMASSFLOW))*(etat_6(1,3)-etat_7(1,3))*1e3;
+    P_conden   = (debit_m_v-sum(XMASSFLOW))*(etat_6(1,3)-etat_7(1,3))*1e3;
 else
-P_conden   =  debit_m_v*(etat_6(1,3)-etat_7(1,3))*1e3 ;  
+    P_conden   =  debit_m_v*(etat_6(1,3)-etat_7(1,3))*1e3 ;  
 end
 
 DATEN(1) = P_gen;    %[W]
@@ -1144,10 +1168,11 @@ T_int=linspace(0,400,1000);
         S_c=[S_c_L,S_c_V];
         T_c=[T_int,T_int];
         plot(S_c,T_c)
-        xlabel('S [kJ/kg K]')
-        ylabel('T [degC]')
+        grid on
+        xlabel('S [kJ/kgK]')
+        ylabel('T [degree C]')
         hold on
-plot(s,T,'k')
+plot(s,T)
 hold on
 for i=1:n_sout
 	if etat_6i(i,5)<1
@@ -1158,7 +1183,8 @@ for i=1:n_sout
         hold on;
 	end
 end
-plot(DAT(4,:),DAT(1,:),'.','markersize',20)
+plot(DAT(4,:),DAT(1,:),'.k','markersize',8)
+%print('diag_T_S','-depsc','-tiff')
 
 FIG(2) = figure;
 T_int=linspace(0,400,1000);
@@ -1171,10 +1197,11 @@ T_int=linspace(0,400,1000);
         S_c=[S_c_L,S_c_V];
         H_c=[h_c_L,h_c_V];
         plot(S_c,H_c)
+        grid on
         xlabel('S [kJ/kg K]')
-        ylabel('H [degC]')
+        ylabel('H [kJ/kg]')
         hold on
-plot(s,h,'k')
+plot(s,h)
 hold on
 for i=1:n_sout
 	if etat_6i(i,5)<1
@@ -1185,15 +1212,17 @@ for i=1:n_sout
         hold on;
 	end
 end
-plot(DAT(4,:),DAT(3,:),'.','markersize',20)
+plot(DAT(4,:),DAT(3,:),'.k','markersize',8)
+%print('diag_H_S','-depsc','-tiff')
 
 FIG(3) = figure;
 pie([P_e,DATEN])
 legend(sprintf('Puissance effective: %10.1fMW',P_e*1e-6),...
        sprintf('Pertes au generateur de vapeur: %10.1fMW',P_gen*1e-6),...
        sprintf('Pertes mecaniques: %10.1fMW',P_mecen*1e-6),...
-       sprintf('Pertes au condenseur: %10.1fMW',P_conden*1e-6),'Location','northeastoutside')
+       sprintf('Pertes au condenseur: %10.1fMW',P_conden*1e-6),'Location','northoutside')
 title(sprintf('Puissance energetique primaire: %10.1fMW',P_toten*1e-6))
+%print('pie_pertes_en','-depsc','-tiff')
 
 FIG(4) = figure;
 pie([P_e,DATEX(1),DATEX(3:end)])
@@ -1203,10 +1232,20 @@ legend(sprintf('Puissance effective: %10.1fMW',P_e*1e-6),...
        sprintf('Irreversibilite combustion: %10.1fMW',P_combex*1e-6),...
        sprintf('Pertes condenseur: %10.1fMW',P_condex*1e-6),...
        sprintf('Pertes cheminee: %10.1fMW',P_chemex*1e-6),...
-       sprintf('Pertes transfert de chaleur generateur de vapeur: %10.1fMW',P_transex*1e-6),'Location','northeastoutside')
+       sprintf('Pertes transfert de chaleur generateur de vapeur: %10.1fMW',P_transex*1e-6),'Location','northoutside')
+%print('pie_pertes_ex','-depsc','-tiff')
 
+FIG(5) = figure;
+plot(linspace(1,8,8),etat_9i(:,2)); hold on
+plot(linspace(1,8,8),etat_7i(:,2))
+title('Heat exchangers temperature evolution')
+xlabel('Number of the heat exchanger R_{I}, R_{II}...')
+ylabel('Temperature [degree C]')
+legend('Cold fluid : 9_{I}...9_{II}...','Hot fluid : 7_{I}...7_{II}...')
+%print('echangeurs','-depsc','-tiff')
 else
     FIG=[];
 end
+
 end
 

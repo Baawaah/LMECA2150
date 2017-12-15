@@ -393,6 +393,39 @@ if display == 1, visibility = 'on';  else visibility = 'off';  end
     legend(STREN1,STREN2,STREN3,STREN4,STREN5,STREN6,STREN7,STREN8,'Location','northeastoutside');
     title('Primary Exergy Flux')
     colormap winter;
+    %% FIG 6
+    FIG(6) = figure('visible',visibility);
+    FIG6A = abs((diff(table(11:16,3))))./(table(11,3)-table(16,3));
+    hold on;
+    plot([0 1], [table(11,2) table(16,2)],'k--')  
+    plot([1 1-FIG6A(end)],[table(2,2) XSteam('Tsat_p',plow)],'r');
+    plot([1-FIG6A(end) 1-sum(FIG6A(end-1:end))],[XSteam('Tsat_p',plow) XSteam('Tsat_p',plow)],'r');
+    plot([1-sum(FIG6A(end-1:end)) 1-sum(FIG6A(end-2:end))],[ XSteam('Tsat_p',plow) XSteam('Tsat_p',phig)],'r');
+    plot([1-sum(FIG6A(end-2:end)) 1-sum(FIG6A(end-3:end))],[XSteam('Tsat_p',phig) XSteam('Tsat_p',phig)],'r');
+    plot([1-sum(FIG6A(end-3:end)) 1-sum(FIG6A(end-4:end))],[ XSteam('Tsat_p',phig) table(3,2)],'r');
+    plot([1-sum(FIG6A(end:end)) 1-sum(FIG6A(end:end))],[0 XSteam('Tsat_p',plow)],'r--')
+    plot([1-sum(FIG6A(end-1:end)) 1-sum(FIG6A(end-1:end))],[0 XSteam('Tsat_p',plow)],'r--')
+    plot([1-sum(FIG6A(end-2:end)) 1-sum(FIG6A(end-2:end))],[0 XSteam('Tsat_p',phig)],'r--')
+    plot([1-sum(FIG6A(end-3:end)) 1-sum(FIG6A(end-3:end))],[0 XSteam('Tsat_p',phig)],'r--')
+    F6T1 = text( 0.1 ,20,'SUP HP');
+    F6T1.Color = 'r';
+    F6T1.Rotation = 90;
+    F6T2 = text( 0.4 ,20,'EVA HP');
+    F6T2.Color = 'r';
+    F6T2.Rotation = 90;
+    F6T3 = text( 0.62 ,20,'ECO HP SUP BP');
+    F6T3.Color = 'r';
+    F6T3.Rotation = 90;
+    F6T4 = text( 0.67 ,20,'EVA BP');
+    F6T4.Color = 'r';
+    F6T4.Rotation = 90;
+    F6T5 = text( 0.75 ,20,'ECO BP');
+    F6T5.Color = 'r';
+    F6T5.Rotation = 90;
+    hold off;
+    xlabel('Heat Fraction Exchange');
+    ylabel('Temperature [C°]')
+    title('Evolution of the temperature');
     %% DUE POINT
     T_due_point  = XSteam('Tsat_p', GT_COMBUSTION.fumTG(4)/GT_MASSFLOW(3));
     if display == 1
